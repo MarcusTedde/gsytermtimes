@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d3446">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GY Term Dates">
+<meta name="description" content="Guernsey school term dates for all schools, in one place.">
+<title>Guernsey Term Dates</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --ocean: #0d3446;
+    --ocean-mid: #155872;
+    --ocean-light: #2f8cb5;
+    --foam: #e8f4f8;
+    --sand: #f7f3ee;
+    --sand-dark: #ede5d8;
+    --amber: #e09240;
+    --text: #1a2e38;
+    --text-muted: #5a7a8a;
+    --white: #ffffff;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 4px 24px rgba(13,52,70,0.10);
+    --shadow-hover: 0 8px 32px rgba(13,52,70,0.18);
+    --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+    --autumn: #c0622a; --autumn-bg: #fdf2ec;
+    --spring: #2a7a4b; --spring-bg: #edf7f2;
+    --summer: #1469a8; --summer-bg: #e8f3fb;
+    --halfterm: #7b4db8;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--sand); color: var(--text); min-height: 100vh; padding-bottom: env(safe-area-inset-bottom, 0px); overflow-x: hidden; }
+
+  /* SETUP BANNER */
+  #setup-banner { background: #fff8e1; border-bottom: 2px solid #f0c060; padding: 14px 20px; display: flex; align-items: flex-start; gap: 12px; }
+  #setup-banner.hidden { display: none; }
+  .setup-text { flex: 1; font-size: 13px; line-height: 1.5; color: #5a3e00; }
+  .setup-text strong { font-weight: 600; display: block; margin-bottom: 3px; }
+  .setup-text code { background: rgba(0,0,0,0.07); padding: 1px 5px; border-radius: 4px; font-size: 12px; font-family: monospace; }
+  .setup-dismiss { background: none; border: none; cursor: pointer; font-size: 20px; color: #b8860b; padding: 0 4px; line-height: 1; flex-shrink: 0; }
+
+  /* INSTALL BANNER */
+  #install-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 999; background: var(--ocean); color: var(--white); padding: 14px 20px; display: flex; align-items: flex-start; gap: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); transform: translateY(-100%); animation: slideDown 0.5s ease 2s forwards; }
+  @keyframes slideDown { to { transform: translateY(0); } }
+  #install-banner.hidden { display: none !important; }
+  .banner-text { flex: 1; }
+  .banner-text strong { display: block; font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+  .banner-text span { font-size: 12.5px; opacity: 0.85; line-height: 1.4; }
+  .banner-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  .banner-btn { background: var(--amber); color: var(--white); border: none; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; }
+  .banner-close { background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 20px; padding: 4px; line-height: 1; }
+
+  /* IOS MODAL */
+  #ios-modal { position: fixed; inset: 0; background: rgba(13,52,70,0.7); z-index: 1000; display: flex; align-items: flex-end; }
+  #ios-modal.hidden { display: none; }
+  .ios-sheet { background: white; width: 100%; border-radius: 24px 24px 0 0; padding: 24px 24px 40px; animation: slideUp 0.3s ease; }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .ios-sheet h3 { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--ocean); margin-bottom: 8px; }
+  .ios-sheet p { color: var(--text-muted); font-size: 14px; line-height: 1.5; margin-bottom: 20px; }
+  .ios-steps { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
+  .ios-step { display: flex; align-items: center; gap: 14px; }
+  .ios-step-num { width: 32px; height: 32px; border-radius: 50%; background: var(--ocean); color: white; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .ios-step-text { font-size: 14px; line-height: 1.4; }
+  .ios-step-text strong { font-weight: 600; }
+  .ios-dismiss { width: 100%; padding: 14px; background: var(--ocean); color: white; border: none; border-radius: var(--radius-sm); font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+
+  /* HEADER */
+  header { background: var(--ocean); padding: 52px 24px 36px; position: relative; overflow: hidden; }
+  header::before { content: ''; position: absolute; bottom: -40px; left: -10%; right: -10%; height: 80px; background: var(--sand); border-radius: 50% 50% 0 0; }
+  .hw1 { position: absolute; top: 0; right: -20px; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle at 70% 30%, rgba(47,140,181,0.25), transparent 65%); pointer-events: none; }
+  .hw2 { position: absolute; bottom: 20px; left: -40px; width: 220px; height: 120px; border-radius: 50%; background: radial-gradient(circle, rgba(47,140,181,0.15), transparent 70%); pointer-events: none; }
+  .header-content { position: relative; }
+  .header-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.8); font-size: 11.5px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 12px; border-radius: 20px; margin-bottom: 12px; }
+  header h1 { font-family: 'Playfair Display', serif; font-size: clamp(26px, 6vw, 40px); font-weight: 700; color: var(--white); line-height: 1.15; margin-bottom: 8px; }
+  header h1 em { font-style: italic; color: rgba(255,255,255,0.75); font-weight: 500; }
+  header p { color: rgba(255,255,255,0.65); font-size: 14px; font-weight: 300; max-width: 420px; }
+
+  /* MAIN */
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; }
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; }
+
+  /* SCHOOL GRID */
+  .school-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; margin-bottom: 28px; }
+  .school-btn { background: var(--white); border: 2px solid transparent; border-radius: var(--radius); padding: 14px 12px 12px; cursor: pointer; text-align: left; transition: var(--transition); box-shadow: var(--shadow); }
+  .school-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+  .school-btn.active { border-color: var(--ocean); background: var(--ocean); }
+  .school-btn.active .school-name { color: white; }
+  .school-btn.active .school-type { color: rgba(255,255,255,0.65); }
+  .school-btn.active .school-emoji { background: rgba(255,255,255,0.15); }
+  .school-emoji { width: 36px; height: 36px; border-radius: 10px; background: var(--foam); display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 10px; transition: var(--transition); }
+  .school-name { font-size: 13.5px; font-weight: 600; color: var(--text); line-height: 1.3; margin-bottom: 3px; transition: var(--transition); }
+  .school-type { font-size: 11px; color: var(--text-muted); font-weight: 400; transition: var(--transition); }
+
+  /* RESULTS */
+  #results { min-height: 200px; }
+
+  /* Loading */
+  .loading-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; gap: 16px; text-align: center; }
+  .spinner { width: 44px; height: 44px; border: 3px solid var(--foam); border-top-color: var(--ocean-light); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-state p { color: var(--text-muted); font-size: 14px; }
+  #proxy-status { font-size: 12px !important; color: var(--ocean-light) !important; margin-top: -8px; }
+
+  /* Error */
+  .error-state { background: #fff8f6; border: 1.5px solid #f4c5b4; border-radius: var(--radius); padding: 24px; text-align: center; }
+  .error-state h3 { color: #c0622a; font-family: 'Playfair Display', serif; font-size: 18px; margin-bottom: 8px; }
+  .error-state p { color: var(--text-muted); font-size: 14px; line-height: 1.5; margin-bottom: 16px; }
+  .error-links { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .source-link { display: inline-flex; align-items: center; gap: 6px; color: var(--ocean-mid); font-size: 13.5px; font-weight: 500; text-decoration: none; border: 1.5px solid var(--ocean-mid); padding: 8px 16px; border-radius: 20px; transition: var(--transition); }
+  .source-link:hover { background: var(--ocean-mid); color: white; }
+  .error-note { margin-top: 16px; font-size: 12px; color: var(--text-muted); background: var(--foam); border-radius: 8px; padding: 10px 14px; text-align: left; line-height: 1.5; }
+  .error-note strong { font-weight: 600; }
+
+  /* Welcome */
+  .welcome-state { background: var(--white); border-radius: var(--radius); padding: 40px 24px; text-align: center; box-shadow: var(--shadow); }
+  .welcome-state .big-emoji { font-size: 48px; margin-bottom: 16px; display: block; }
+  .welcome-state h3 { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--ocean); margin-bottom: 8px; }
+  .welcome-state p { color: var(--text-muted); font-size: 14px; line-height: 1.6; max-width: 360px; margin: 0 auto; }
+
+  /* YEAR TABS */
+  .year-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .year-tabs::-webkit-scrollbar { display: none; }
+  .year-tab { flex-shrink: 0; background: var(--white); border: 2px solid transparent; border-radius: 20px; padding: 7px 18px; font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; color: var(--text-muted); transition: var(--transition); box-shadow: 0 2px 8px rgba(13,52,70,0.07); }
+  .year-tab:hover { border-color: var(--ocean-light); color: var(--ocean); }
+  .year-tab.active { background: var(--ocean); color: white; border-color: var(--ocean); }
+
+  /* TERM CARDS */
+  .terms-grid { display: grid; gap: 12px; grid-template-columns: 1fr; margin-bottom: 20px; }
+  @media (min-width: 560px) { .terms-grid { grid-template-columns: repeat(3, 1fr); } }
+  .term-card { background: var(--white); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); transition: var(--transition); animation: cardIn 0.35s ease both; }
+  .term-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .term-card:nth-child(1) { animation-delay: 0.05s; }
+  .term-card:nth-child(2) { animation-delay: 0.12s; }
+  .term-card:nth-child(3) { animation-delay: 0.19s; }
+  .term-header { padding: 14px 16px 10px; display: flex; align-items: center; gap: 10px; }
+  .term-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .term-header h3 { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 600; flex: 1; }
+  .term-weeks { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 10px; }
+  .term-autumn .term-header { background: var(--autumn-bg); }
+  .term-autumn .term-dot { background: var(--autumn); }
+  .term-autumn .term-header h3 { color: var(--autumn); }
+  .term-autumn .term-weeks { background: rgba(192,98,42,0.12); color: var(--autumn); }
+  .term-spring .term-header { background: var(--spring-bg); }
+  .term-spring .term-dot { background: var(--spring); }
+  .term-spring .term-header h3 { color: var(--spring); }
+  .term-spring .term-weeks { background: rgba(42,122,75,0.12); color: var(--spring); }
+  .term-summer .term-header { background: var(--summer-bg); }
+  .term-summer .term-dot { background: var(--summer); }
+  .term-summer .term-header h3 { color: var(--summer); }
+  .term-summer .term-weeks { background: rgba(20,105,168,0.12); color: var(--summer); }
+  .term-body { padding: 12px 16px 16px; }
+  .date-row { display: flex; justify-content: space-between; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--sand-dark); gap: 10px; }
+  .date-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .date-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; flex-shrink: 0; }
+  .date-value { font-size: 13.5px; font-weight: 500; color: var(--text); text-align: right; }
+  .half-term-row { background: #f3edf8; margin: 8px -16px 4px; padding: 8px 16px; }
+  .half-term-row .date-label { color: var(--halfterm); }
+  .half-term-row .date-value { color: var(--halfterm); font-size: 12.5px; }
+  .source-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 14px 0 0; border-top: 1.5px solid var(--sand-dark); margin-top: 4px; }
+  .source-footer span { font-size: 12px; color: var(--text-muted); }
+  .view-source { display: inline-flex; align-items: center; gap: 5px; color: var(--ocean-mid); font-size: 12.5px; font-weight: 500; text-decoration: none; padding: 5px 12px; border-radius: 16px; border: 1.5px solid var(--ocean-mid); transition: var(--transition); }
+  .view-source:hover { background: var(--ocean-mid); color: white; }
+  .proxy-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); padding: 4px 10px; border-radius: 12px; background: var(--foam); }
+  .proxy-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .proxy-dot.ok { background: #2a7a4b; }
+  .proxy-dot.fallback { background: var(--amber); }
+
+  /* Raw Tables */
+  .raw-table-wrap { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 16px; animation: cardIn 0.3s ease; }
+  .raw-table-title { padding: 14px 18px; background: var(--ocean); color: white; font-size: 14px; font-weight: 600; }
+  .table-scroll { overflow-x: auto; }
+  .raw-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .raw-table th { background: var(--foam); color: var(--ocean); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 16px; text-align: left; }
+  .raw-table td { padding: 10px 16px; border-bottom: 1px solid var(--sand-dark); color: var(--text); vertical-align: top; }
+  .raw-table tr:last-child td { border-bottom: none; }
+  .raw-table tr:hover td { background: var(--sand); }
+
+  /* PDF Links */
+  .pdf-links { display: grid; gap: 10px; margin-bottom: 16px; }
+  .pdf-link-card { background: var(--white); border-radius: var(--radius-sm); padding: 14px 16px; display: flex; align-items: center; gap: 14px; box-shadow: 0 2px 10px rgba(13,52,70,0.07); text-decoration: none; color: var(--text); transition: var(--transition); animation: cardIn 0.3s ease both; }
+  .pdf-link-card:hover { transform: translateX(4px); box-shadow: var(--shadow-hover); }
+  .pdf-icon { font-size: 24px; flex-shrink: 0; }
+  .pdf-info { flex: 1; }
+  .pdf-info strong { display: block; font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+  .pdf-info span { font-size: 12px; color: var(--text-muted); }
+  .pdf-arrow { color: var(--text-muted); font-size: 18px; }
+
+  /* Progress */
+  #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: var(--amber); width: 0%; transition: width 0.3s ease; z-index: 100; pointer-events: none; }
+
+  /* Responsive */
+  @media (max-width: 480px) { .school-grid { grid-template-columns: repeat(2, 1fr); } header { padding: 44px 18px 36px; } main { padding: 20px 14px 60px; } }
+  @media (min-width: 600px) { .school-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 760px) { header { padding: 56px 40px 40px; } main { padding: 32px 24px 80px; } }
+
+  .hidden { display: none !important; }
+  .mt-16 { margin-top: 16px; }
+  .year-panel { display: none; }
+  .year-panel.active { display: block; }
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+
+<!-- Setup Banner -->
+<div id="setup-banner" class="hidden">
+  <div class="setup-text">
+    <strong>⚙️ Optional: Deploy your own Cloudflare Worker for reliable data fetching</strong>
+    See <code>cloudflare-worker.js</code> for 5-minute setup instructions. Then set <code>WORKER_PROXY</code> at the top of this file's script. Using public fallback proxies until then.
+  </div>
+  <button class="setup-dismiss" id="setup-dismiss" aria-label="Dismiss">×</button>
+</div>
+
+<!-- Install Banner -->
+<div id="install-banner" class="hidden">
+  <div class="banner-text">
+    <strong>📱 Add to Home Screen</strong>
+    <span id="banner-instruction">Install for quick access to school term dates.</span>
+  </div>
+  <div class="banner-actions">
+    <button class="banner-btn" id="install-btn">Install</button>
+    <button class="banner-close" id="banner-close" aria-label="Dismiss">×</button>
+  </div>
+</div>
+
+<!-- iOS Modal -->
+<div id="ios-modal" class="hidden" role="dialog" aria-modal="true">
+  <div class="ios-sheet">
+    <h3>Save to Home Screen</h3>
+    <p>Access Guernsey Term Dates instantly — just like a native app.</p>
+    <div class="ios-steps">
+      <div class="ios-step"><div class="ios-step-num">1</div><div class="ios-step-text">Tap the <strong>Share button</strong> (□↑) at the bottom of Safari</div></div>
+      <div class="ios-step"><div class="ios-step-num">2</div><div class="ios-step-text">Scroll down and tap <strong>"Add to Home Screen"</strong></div></div>
+      <div class="ios-step"><div class="ios-step-num">3</div><div class="ios-step-text">Tap <strong>Add</strong> — done! 🎉</div></div>
+    </div>
+    <button class="ios-dismiss" id="ios-dismiss">Got it!</button>
+  </div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="hw1"></div><div class="hw2"></div>
+  <div class="header-content">
+    <div class="header-badge">🏝️ Guernsey, Channel Islands</div>
+    <h1>School <em>Term</em><br>Dates</h1>
+    <p>All Guernsey schools in one place. Select a school below to view term dates.</p>
+  </div>
+</header>
+
+<main>
+  <div class="section-label">Select a school</div>
+  <div class="school-grid" role="group" aria-label="Select school">
+    <button class="school-btn" data-school="states" aria-pressed="false"><div class="school-emoji">🏫</div><div class="school-name">All States Schools</div><div class="school-type">States of Guernsey</div></button>
+    <button class="school-btn" data-school="tgi"    aria-pressed="false"><div class="school-emoji">🎓</div><div class="school-name">TGI</div><div class="school-type">Further Education</div></button>
+    <button class="school-btn" data-school="ec-senior" aria-pressed="false"><div class="school-emoji">⚜️</div><div class="school-name">Elizabeth College</div><div class="school-type">Senior School</div></button>
+    <button class="school-btn" data-school="ec-junior" aria-pressed="false"><div class="school-emoji">🎒</div><div class="school-name">Elizabeth College</div><div class="school-type">Junior School</div></button>
+    <button class="school-btn" data-school="melrose" aria-pressed="false"><div class="school-emoji">🌸</div><div class="school-name">Melrose</div><div class="school-type">Pre-school &amp; Prep</div></button>
+    <button class="school-btn" data-school="ladies" aria-pressed="false"><div class="school-emoji">🎀</div><div class="school-name">Ladies' College</div><div class="school-type">Senior &amp; Sixth Form</div></button>
+    <button class="school-btn" data-school="blanchelande" aria-pressed="false"><div class="school-emoji">✝️</div><div class="school-name">Blanchelande</div><div class="school-type">Independent Catholic</div></button>
+  </div>
+
+  <div id="results">
+    <div class="welcome-state">
+      <span class="big-emoji">🌊</span>
+      <h3>Welcome to Guernsey Term Dates</h3>
+      <p>Choose a school above to view term dates, half-term breaks, and key dates for current and upcoming academic years.</p>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════════════════
+//  ★  SET YOUR CLOUDFLARE WORKER URL HERE  ★
+//  After deploying cloudflare-worker.js, paste your URL.
+//  Example: 'https://gy-terms-proxy.yourname.workers.dev'
+//  Leave empty to rely on public fallback proxies only.
+// ══════════════════════════════════════════════════════════
+const WORKER_PROXY = 'https://gy-terms-proxy.marcustedde.workers.dev';
+
+// ─── PDF.js ───────────────────────────────────────────────
+// Using jsdelivr (not Cloudflare CDN) because it hosts the full pdfjs-dist
+// npm package including the /cmaps/ and /standard_fonts/ subdirectories.
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+// ─── PROXY CHAIN ──────────────────────────────────────────
+// Tried in order; first success wins.
+function getProxyChain(targetUrl) {
+  const enc = encodeURIComponent(targetUrl);
+  const isPDF = /\.pdf($|\?)/i.test(targetUrl);
+  const chain = [];
+
+  if (WORKER_PROXY) {
+    chain.push({
+      name: 'Worker',
+      async run() {
+        const r = await fetch(`${WORKER_PROXY.replace(/\/$/,'')}/?url=${enc}`,
+          { signal: AbortSignal.timeout(18000) });
+        if (!r.ok) throw new Error(`Worker HTTP ${r.status}`);
+        return isPDF ? r.arrayBuffer() : r.text();
+      }
+    });
+  }
+
+  // corsproxy.io — returns raw content with CORS headers
+  chain.push({
+    name: 'corsproxy.io',
+    async run() {
+      const r = await fetch(`https://corsproxy.io/?${enc}`,
+        { signal: AbortSignal.timeout(15000) });
+      if (!r.ok) throw new Error(`corsproxy.io HTTP ${r.status}`);
+      return isPDF ? r.arrayBuffer() : r.text();
+    }
+  });
+
+  // thingproxy — raw, works for HTML
+  if (!isPDF) {
+    chain.push({
+      name: 'thingproxy',
+      async run() {
+        const r = await fetch(`https://thingproxy.freeboard.io/fetch/${targetUrl}`,
+          { signal: AbortSignal.timeout(12000) });
+        if (!r.ok) throw new Error(`thingproxy HTTP ${r.status}`);
+        return r.text();
+      }
+    });
+  }
+
+  // allorigins JSON wrapper — HTML only
+  if (!isPDF) {
+    chain.push({
+      name: 'allorigins',
+      async run() {
+        const r = await fetch(`https://api.allorigins.win/get?url=${enc}`,
+          { signal: AbortSignal.timeout(12000) });
+        if (!r.ok) throw new Error(`allorigins HTTP ${r.status}`);
+        const j = await r.json();
+        if (!j.contents) throw new Error('allorigins empty response');
+        return j.contents;
+      }
+    });
+  }
+
+  return chain;
+}
+
+async function fetchWithFallback(url, onTry) {
+  const chain = getProxyChain(url);
+  const errors = [];
+  for (const proxy of chain) {
+    try {
+      if (onTry) onTry(proxy.name);
+      const result = await proxy.run();
+      return { result, proxyName: proxy.name };
+    } catch (err) {
+      console.warn(`[proxy:${proxy.name}]`, err.message);
+      errors.push(`${proxy.name}: ${err.message}`);
+    }
+  }
+  throw new Error('All proxies failed — ' + errors.join(' | '));
+}
+
+// ─── SCHOOL CONFIG ────────────────────────────────────────
+const SCHOOLS = {
+  states: {
+    name: 'All States of Guernsey Schools', emoji: '🏫',
+    type: 'html', url: 'https://www.gov.gg/termdates', sourceLabel: 'gov.gg'
+  },
+  tgi: {
+    name: 'The Guernsey Institute (TGI)', emoji: '🎓',
+    type: 'html', url: 'https://www.tgi.ac.gg/students/term-dates', sourceLabel: 'tgi.ac.gg'
+  },
+  'ec-senior': {
+    name: 'Elizabeth College (Senior)', emoji: '⚜️', type: 'pdfs',
+    pdfs: [
+      { label:'2025–2026', url:'https://elizabethcollege.gg/wp-content/uploads/2024/04/Term-Dates-2025-2026.pdf' },
+      { label:'2026–2027', url:'https://elizabethcollege.gg/wp-content/uploads/2024/06/Term-Dates-2026-2027.pdf' },
+      { label:'2027–2028', url:'https://elizabethcollege.gg/wp-content/uploads/2026/02/Term-Dates-2027-2028.pdf' },
+      { label:'2028–2029', url:'https://elizabethcollege.gg/wp-content/uploads/2026/02/Term-Dates-2028-2029.pdf' }
+    ], sourceLabel: 'elizabethcollege.gg'
+  },
+  'ec-junior': {
+    name: 'Elizabeth College (Junior)', emoji: '🎒', type: 'pdfs',
+    pdfs: [
+      { label:'2025–2026', url:'https://elizabethcollege.gg/wp-content/uploads/2024/04/Term-Dates-2025-2026.pdf' },
+      { label:'2026–2027', url:'https://elizabethcollege.gg/wp-content/uploads/2024/06/Term-Dates-2026-2027.pdf' },
+      { label:'2027–2028', url:'https://elizabethcollege.gg/wp-content/uploads/2026/02/Term-Dates-2027-2028.pdf' },
+      { label:'2028–2029', url:'https://elizabethcollege.gg/wp-content/uploads/2026/02/Term-Dates-2028-2029.pdf' }
+    ], sourceLabel: 'elizabethcollege.gg'
+  },
+  melrose: {
+    name: 'Melrose (Pre-school)', emoji: '🌸', type: 'pdfs',
+    pdfs: [
+      { label:'2025–2026', url:'https://www.ladiescollege.com/media/5c2aogeh/pre-school-and-melrose-term-dates-2025-2026.pdf' },
+      { label:'2026–2027', url:'https://ladiescollege.com/media/isbcvg1n/pre-school-and-melrose-term-dates-2026-2027.pdf' },
+      { label:'2027–2028', url:'https://www.ladiescollege.com/media/zqelsxwq/2027-2028-pre-school-melrose-term-dates.pdf' },
+      { label:'2028–2029', url:'https://www.ladiescollege.com/media/uyebu5oq/2028-2029-pre-school-melrose-term-dates.pdf' }
+    ], sourceLabel: 'ladiescollege.com'
+  },
+  ladies: {
+    name: "Ladies' College", emoji: '🎀', type: 'pdfs',
+    pdfs: [
+      { label:'2025–2026', url:'https://www.ladiescollege.com/media/5gnfigki/senior-school-and-sixth-form-term-dates-2025-2026.pdf' },
+      { label:'2026–2027', url:'https://www.ladiescollege.com/media/1shfvybb/senior-school-sixth-form-term-dates-2026-2027.pdf' },
+      { label:'2027–2028', url:'https://www.ladiescollege.com/media/zgijmcfx/2027-2028-senior-school-sixth-form-term-dates.pdf' },
+      { label:'2028–2029', url:'https://www.ladiescollege.com/media/zadnopqw/2028-2029-senior-school-sixth-form-term-dates.pdf' }
+    ], sourceLabel: 'ladiescollege.com'
+  },
+  blanchelande: {
+    name: 'Blanchelande College', emoji: '✝️',
+    type: 'html', url: 'https://blanchelande.co.uk/about-us/term-dates/', sourceLabel: 'blanchelande.co.uk'
+  }
+};
+
+// ─── LAST SCHOOL PERSISTENCE ──────────────────────────────
+const LS_SCHOOL = 'gy_last_school';
+const LS_SETUP  = 'gy_setup_dismissed';
+const saveSchool = k => { try { localStorage.setItem(LS_SCHOOL, k); } catch {} };
+const getLastSchool = () => { try { return localStorage.getItem(LS_SCHOOL); } catch { return null; } };
+
+// ─── DATE UTILS ───────────────────────────────────────────
+const MONTHS_LONG  = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+const MONTHS_SHORT = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+// Also handle "sept" as alias for september
+const MONTH_PAT = '(?:january|february|march|april|may|june|july|august|september|sept|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)';
+
+function monthIndex(str) {
+  const s = str.toLowerCase().replace(/\.$/,'');
+  let i = MONTHS_LONG.indexOf(s);
+  if (i > -1) return i;
+  i = MONTHS_SHORT.indexOf(s.substring(0,3));
+  if (i > -1) return i;
+  if (s === 'sept') return 8;
+  return -1;
+}
+
+function parseDate(str) {
+  if (!str) return null;
+  // Normalise: collapse whitespace, remove ordinals, lowercase
+  str = str.trim()
+    .replace(/\s+/g, ' ')
+    .replace(/(\d)(st|nd|rd|th)\b/gi, '$1');
+
+  let m;
+  // "1 September 2025" or "Monday 1 September 2025"
+  m = str.match(new RegExp(`(?:(?:mon|tue|wed|thu|fri|sat|sun)\\w*\\s+)?(\\d{1,2})\\s+(${MONTH_PAT})\\s+(\\d{4})`, 'i'));
+  if (m) { const mi=monthIndex(m[2]); if(mi>-1) return new Date(+m[3],mi,+m[1]); }
+  // "September 1 2025" or "September 1, 2025"
+  m = str.match(new RegExp(`(${MONTH_PAT})\\s+(\\d{1,2}),?\\s+(\\d{4})`, 'i'));
+  if (m) { const mi=monthIndex(m[1]); if(mi>-1) return new Date(+m[3],mi,+m[2]); }
+  // "1September2025" — no spaces at all (PDF extraction artefact)
+  m = str.match(new RegExp(`(\\d{1,2})(${MONTH_PAT})(\\d{4})`, 'i'));
+  if (m) { const mi=monthIndex(m[2]); if(mi>-1) return new Date(+m[3],mi,+m[1]); }
+  // "September2025" with a day nearby — handled by caller
+  // dd/mm/yyyy  or  dd/mm/yy
+  m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (m) { const yr=+m[3]<100?2000+ +m[3]: +m[3]; return new Date(yr,+m[2]-1,+m[1]); }
+  // yyyy-mm-dd
+  m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return new Date(+m[1],+m[2]-1,+m[3]);
+  return null;
+}
+
+function fmtDate(d) {
+  if (!d || isNaN(d)) return '—';
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const mons=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const n=d.getDate(), s=n===1||n===21||n===31?'st':n===2||n===22?'nd':n===3||n===23?'rd':'th';
+  return `${days[d.getDay()]} ${n}${s} ${mons[d.getMonth()]} ${d.getFullYear()}`;
+}
+function fmtShort(d) {
+  if (!d || isNaN(d)) return '—';
+  const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${d.getDate()} ${m[d.getMonth()]} ${d.getFullYear()}`;
+}
+function weeks(a,b) { return (!a||!b)?null:Math.round(Math.abs(b-a)/(1000*60*60*24*7)); }
+
+
+// ─── PDF TEXT EXTRACTION ──────────────────────────────────
+function postProcessPDFText(text) {
+  const MP = '(?:january|february|march|april|may|june|july|august|september|sept|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)';
+  return text
+    .replace(new RegExp(`(\\d{1,2})(${MP})`, 'gi'),  '$1 $2')
+    .replace(new RegExp(`(${MP})(\\d{1,2})`, 'gi'),  '$1 $2')
+    .replace(new RegExp(`(\\d{4})(${MP})`, 'gi'),    '$1 $2')
+    .replace(new RegExp(`(${MP})(\\d{4})`, 'gi'),    '$1 $2')
+    .replace(/(\d{1,2})(st|nd|rd|th)(\d)/gi,         '$1$2 $3')
+    .replace(/([a-z])(\d{4})\b/gi,                   '$1 $2')
+    .replace(/\s{2,}/g, ' ').replace(/ \n/g, '\n').trim();
+}
+
+// Decode raw PDF string bytes (handles UTF-16BE BOM and octal escapes)
+function decodePDFStringValue(raw) {
+  if (raw.length >= 2 && raw.charCodeAt(0) === 0xFE && raw.charCodeAt(1) === 0xFF) {
+    let s = '';
+    for (let i = 2; i + 1 < raw.length; i += 2) {
+      const cp = (raw.charCodeAt(i) << 8) | raw.charCodeAt(i + 1);
+      if (cp > 0) s += String.fromCodePoint(cp);
+    }
+    return s;
+  }
+  return raw
+    .replace(/\\([0-7]{1,3})/g, (_, o) => String.fromCharCode(parseInt(o, 8)))
+    .replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t')
+    .replace(/\\\(/g, '(').replace(/\\\)/g, ')').replace(/\\\\/g, '\\');
+}
+
+// Extract text from a decompressed PDF content stream using text operators
+function extractTextOps(s) {
+  let text = '';
+  // (string) Tj / (string) ' / (string) "
+  const tjRe = /\(([^)\\]*(?:\\.[^)\\]*)*)\)\s*[Tj'"]/g;
+  let m;
+  while ((m = tjRe.exec(s)) !== null) text += decodePDFStringValue(m[1]) + ' ';
+  // [(array)] TJ
+  const tjArrRe = /\[([^\]]*)\]\s*TJ/g;
+  while ((m = tjArrRe.exec(s)) !== null) {
+    const strRe = /\(([^)\\]*(?:\\.[^)\\]*)*)\)/g;
+    let sm;
+    while ((sm = strRe.exec(m[1])) !== null) text += decodePDFStringValue(sm[1]);
+    text += ' ';
+  }
+  return text;
+}
+
+// Strategy D: decompress every zlib content stream, parse PDF text operators directly.
+// This bypasses PDF.js font mapping entirely — reads raw character bytes from the stream.
+async function strategyD(buffer) {
+  const bytes = new Uint8Array(buffer);
+
+  function findSeq(arr, pat, from) {
+    outer: for (let i = from; i <= arr.length - pat.length; i++) {
+      for (let j = 0; j < pat.length; j++) if (arr[i+j] !== pat[j]) continue outer;
+      return i;
+    }
+    return -1;
+  }
+
+  const SM  = [115,116,114,101,97,109];            // "stream"
+  const ESM = [101,110,100,115,116,114,101,97,109]; // "endstream"
+
+  async function tryDecomp(data) {
+    for (const fmt of ['deflate', 'deflate-raw']) {
+      try {
+        const ds = new DecompressionStream(fmt);
+        const w = ds.writable.getWriter(); const r = ds.readable.getReader();
+        w.write(data.slice(0)); w.close();
+        const chunks = [];
+        while (true) { const {done,value} = await r.read(); if(done)break; chunks.push(value); }
+        const out = new Uint8Array(chunks.reduce((n,c)=>n+c.length,0));
+        let off=0; for(const c of chunks){out.set(c,off);off+=c.length;}
+        return out;
+      } catch {}
+    }
+    return null;
+  }
+
+  const latin1 = new TextDecoder('latin1');
+  let allText = '', pos = 0;
+
+  while (pos < bytes.length) {
+    const s = findSeq(bytes, SM, pos); if (s === -1) break;
+    let start = s + 6;
+    if (bytes[start] === 13) start++; if (bytes[start] === 10) start++;
+    const e = findSeq(bytes, ESM, start); if (e === -1) break;
+
+    const data = bytes.slice(start, e);
+    const decomp = await tryDecomp(data);
+    const content = latin1.decode(decomp || data);
+
+    if (/\bT[jJ'"]\b|\bBT\b/.test(content)) {
+      allText += extractTextOps(content) + '\n';
+    }
+    pos = e + 9;
+  }
+  return postProcessPDFText(allText);
+}
+
+async function pdfToText(buffer) {
+  const JSCDN = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/';
+  const pdf = await pdfjsLib.getDocument({
+    data: buffer, verbosity: 0,
+    cMapUrl: JSCDN + 'cmaps/', cMapPacked: true,
+    standardFontDataUrl: JSCDN + 'standard_fonts/',
+    useSystemFonts: false, disableFontFace: true,
+  }).promise;
+
+  // Strategy A: position-aware line grouping
+  async function strategyA() {
+    let out = '';
+    for (let p=1;p<=pdf.numPages;p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent({ normalizeWhitespace: false });
+      const pageH = page.getViewport({scale:1}).height;
+      const items = content.items.filter(it=>it.str!=null).map(it=>{
+        const [a,,,,x,y]=it.transform; const fs=Math.abs(a)||10;
+        return {str:it.str,x,y:pageH-y,w:it.width>0?it.width:it.str.length*fs*0.55,fs,eol:!!it.hasEOL};
+      });
+      if(!items.length)continue;
+      items.sort((a,b)=>Math.abs(a.y-b.y)<2.5?a.x-b.x:a.y-b.y);
+      const lines=[[items[0]]];
+      for(let i=1;i<items.length;i++){
+        const last=lines[lines.length-1];
+        Math.abs(items[i].y-last[0].y)<3.5?last.push(items[i]):lines.push([items[i]]);
+      }
+      for(const line of lines){
+        line.sort((a,b)=>a.x-b.x);
+        let s='';
+        for(let i=0;i<line.length;i++){
+          const it=line[i];
+          if(i>0){const pv=line[i-1];if(it.x-(pv.x+pv.w)>pv.fs*0.28&&!s.endsWith(' ')&&!it.str.startsWith(' '))s+=' ';}
+          s+=it.str; if(it.eol)s+='\n';
+        }
+        if(s.trim())out+=s.trim()+'\n';
+      }
+      out+='\n';
+    }
+    return postProcessPDFText(out);
+  }
+
+  // Strategy B: hasEOL sequential
+  async function strategyB() {
+    let out='';
+    for(let p=1;p<=pdf.numPages;p++){
+      const page=await pdf.getPage(p);
+      const content=await page.getTextContent({normalizeWhitespace:true});
+      for(const it of content.items){
+        if(!it.str)continue;
+        out+=it.str+(it.hasEOL?'\n':(!it.str.endsWith(' ')?' ':''));
+      }
+      out+='\n\n';
+    }
+    return postProcessPDFText(out);
+  }
+
+  const scoreM = t => (t.match(/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\b/gi)||[]).length;
+
+  let [tA,tB,tD]=['','',''];
+  try{tA=await strategyA();}catch(e){console.warn('A:',e.message);}
+  try{tB=await strategyB();}catch(e){console.warn('B:',e.message);}
+  try{tD=await strategyD(buffer);}catch(e){console.warn('D:',e.message);}
+
+  const [sA,sB,sD]=[scoreM(tA),scoreM(tB),scoreM(tD)];
+  let best=tA, label='A';
+  if(sB>sA){best=tB;label='B';}
+  if(sD>Math.max(sA,sB)){best=tD;label='D(zlib)';}
+
+  // Strategy C: raw ASCII scan (last resort)
+  if(scoreM(best)===0){
+    const bts=new Uint8Array(buffer);let raw='',run='';
+    for(let i=0;i<bts.length;i++){const c=bts[i];if((c>=32&&c<=126)||c===9||c===10||c===13){run+=String.fromCharCode(c);}else{if(run.length>=3)raw+=run+' ';run='';}}
+    if(run.length>=3)raw+=run;
+    const tC=postProcessPDFText(raw.replace(/\s+/g,' '));
+    if(scoreM(tC)>0){best=tC;label='C(raw)';}
+  }
+
+  console.group(`%c[PDF] strategy=${label} A:${sA} B:${sB} D:${sD}`,'color:#2f8cb5;font-weight:bold');
+  console.log(best);
+  console.groupEnd();
+  return { text: best, debug: { A:tA, B:tB, D:tD, label, scores:{A:sA,B:sB,D:sD} } };}
+
+
+// ─── TERM DATE PARSER ─────────────────────────────────────
+// Handles the specific formats used by Guernsey schools:
+//   - Michaelmas/Lent/Trinity term names
+//   - Dates without years (year inferred from section heading)
+//   - Orphaned ordinal lines from PDF superscript rendering
+//   - Wrapped half-term ranges ("to Friday 31st\nOctober")
+
+const MONTHS_IDX = {
+  january:0, february:1, march:2, april:3, may:4, june:5,
+  july:6, august:7, september:8, october:9, november:10, december:11,
+  jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11
+};
+const MONTH_RE_SRC = 'january|february|march|april|may|june|july|august|september|october|november|december';
+
+// Map Guernsey term names to standard keys + which year they sit in
+const GUERNSEY_TERM_MAP = {
+  michaelmas: { key: 'autumn', yearOffset: 0  },  // Michaelmas 2025 → autumn of 2025-2026
+  lent:       { key: 'spring', yearOffset: -1 },  // Lent 2026 → spring of 2025-2026
+  trinity:    { key: 'summer', yearOffset: -1 },  // Trinity 2026 → summer of 2025-2026
+  autumn:     { key: 'autumn', yearOffset: 0  },
+  spring:     { key: 'spring', yearOffset: -1 },
+  summer:     { key: 'summer', yearOffset: -1 }
+};
+
+function parseHalfTermDates(line, year) {
+  const DAY_OPT = '(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)?\\s*';
+  // Pattern A: "22 to Friday 31 October" or "22nd to 31st October" — shared month
+  let m = line.match(new RegExp(
+    `(\\d{1,2})(?:st|nd|rd|th)?\\s+to\\s+${DAY_OPT}(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_RE_SRC})`, 'i'));
+  if (m) {
+    const mo = MONTHS_IDX[m[3].toLowerCase()];
+    if (mo !== undefined) return [new Date(year, mo, +m[1]), new Date(year, mo, +m[2])];
+  }
+  // Pattern B: two separate "DD Month" dates — "13th February to 20th February"
+  const dates = [];
+  const re = new RegExp(`(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_RE_SRC})`, 'gi');
+  let dm;
+  while ((dm = re.exec(line)) !== null) {
+    const mo = MONTHS_IDX[dm[2].toLowerCase()];
+    if (mo !== undefined) dates.push(new Date(year, mo, +dm[1]));
+  }
+  if (dates.length >= 2) return [dates[0], dates[dates.length - 1]];
+  if (dates.length === 1) return [dates[0], dates[0]]; // single half-term day
+  return [null, null];
+}
+
+function parseDateFromLine(line, year) {
+  // "Thursday 4th September" or "Thursday 4 September" or "Monday 13 April"
+  const m = line.match(new RegExp(
+    `(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)?\\s*(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_RE_SRC})`, 'i'));
+  if (m) {
+    const mo = MONTHS_IDX[m[2].toLowerCase()];
+    if (mo !== undefined) return new Date(year, mo, +m[1]);
+  }
+  return null;
+}
+
+function parseTermsFromText(text) {
+  // ── Step 1: Clean orphaned ordinal-only lines (EC PDF superscript artefact) ──
+  // Lines like "th", "st nd rd", "nd, rd th" — only ordinal suffixes and punctuation
+  const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const cleaned = rawLines.filter(l => !/^(?:\s*(?:st|nd|rd|th)[,.\s]*)+$/i.test(l));
+
+  // ── Step 2: Join wrapped lines ──
+  // "...to Friday 31st" + "October inclusive" → merge when line ends in bare number/ordinal
+  // and next line starts with a month name
+  const monthStartRe = new RegExp(`^(${MONTH_RE_SRC})\\b`, 'i');
+  const lines = [];
+  for (let i = 0; i < cleaned.length; i++) {
+    let line = cleaned[i];
+    if (/\b\d{1,2}(?:st|nd|rd|th)?\s*$/.test(line) && i + 1 < cleaned.length
+        && monthStartRe.test(cleaned[i + 1])) {
+      line = line + ' ' + cleaned[i + 1];
+      i++;
+    }
+    lines.push(line);
+  }
+
+  const yearData = {};
+  let curAcYear = null;   // e.g. "2025-2026"
+  let curTermKey = null;  // "autumn"/"spring"/"summer"
+  let curYear    = null;  // numeric year for date parsing
+
+  for (let i = 0; i < lines.length; i++) {
+    const line  = lines[i];
+    const lower = line.toLowerCase();
+
+    // ── Detect term section heading ──
+    // Matches: "Michaelmas 2025", "Lent Term 2026", "Trinity 2026", "Autumn Term 2025" etc.
+    const headingM = lower.match(
+      /\b(michaelmas|lent|trinity|autumn|spring|summer)\s*(?:term\s*)?(\d{4})/);
+    if (headingM) {
+      const info   = GUERNSEY_TERM_MAP[headingM[1]];
+      curTermKey   = info.key;
+      curYear      = parseInt(headingM[2]);
+      const acYrStart = curYear + info.yearOffset;
+      curAcYear    = `${acYrStart}-${acYrStart + 1}`;
+      if (!yearData[curAcYear]) {
+        yearData[curAcYear] = { year: curAcYear, autumn: null, spring: null, summer: null };
+      }
+      continue;
+    }
+
+    if (!curAcYear || !curTermKey || !curYear) continue;
+
+    // Ensure term bucket exists
+    if (!yearData[curAcYear][curTermKey]) {
+      yearData[curAcYear][curTermKey] = { start: null, end: null, halfTermStart: null, halfTermEnd: null };
+    }
+    const bucket = yearData[curAcYear][curTermKey];
+
+    // ── Start of Term ──
+    if (/\b(start of term|term starts?)\b/i.test(line)) {
+      // Skip staff/INSET/reception/induction lines; only set start once
+      if (/staff|inset|induction/i.test(line)) continue;
+      if (bucket.start) continue; // already set — first non-staff line wins
+      const d = parseDateFromLine(line, curYear);
+      if (d) bucket.start = d;
+      continue;
+    }
+
+    // ── End of Term ──
+    if (/\b(end of term|term ends?)\b/i.test(line)) {
+      const d = parseDateFromLine(line, curYear);
+      if (d) bucket.end = d;
+      continue;
+    }
+
+    // ── Half Term ──
+    if (/\bhalf[\s-]?term\b/i.test(line)) {
+      const [hs, he] = parseHalfTermDates(line, curYear);
+      if (hs) bucket.halfTermStart = hs;
+      if (he) bucket.halfTermEnd   = he;
+      continue;
+    }
+  }
+
+  // Remove years with no real data
+  for (const yr of Object.keys(yearData)) {
+    const yd = yearData[yr];
+    if (!yd.autumn && !yd.spring && !yd.summer) delete yearData[yr];
+    else {
+      // Clean up any null-start/null-end term buckets
+      for (const t of ['autumn','spring','summer']) {
+        if (yd[t] && !yd[t].start && !yd[t].end) yd[t] = null;
+      }
+    }
+  }
+
+  // ── Fallback to generic date scraping if bespoke parser found nothing ──
+  if (Object.keys(yearData).length === 0) {
+    return parseTermsGeneric(text);
+  }
+
+  return yearData;
+}
+
+// Generic fallback for non-Guernsey-format PDFs (States, TGI, Blanchelande)
+function parseTermsGeneric(text) {
+  const data = {};
+  const yrs = new Set();
+  for (const m of text.matchAll(/20(\d{2})\s*[\/\-–]\s*(?:20)?(\d{2})/g)) {
+    const y1 = `20${m[1]}`, y2 = m[2].length===2?`20${m[2]}`:m[2];
+    if (Math.abs(+y2-+y1)===1) yrs.add(`${y1}-${y2}`);
+  }
+  if (!yrs.size) {
+    const y4=[...new Set((text.match(/\b(202[4-9]|203\d)\b/g)||[]))].sort();
+    for(let i=0;i<y4.length-1;i++) yrs.add(`${y4[i]}-${y4[i+1]}`);
+    if(!yrs.size) yrs.add('current');
+  }
+
+  const TERM_PATS = {
+    autumn:/\b(autumn\s*term|term\s*1)\b/gi,
+    spring:/\b(spring\s*term|term\s*2)\b/gi,
+    summer:/\b(summer\s*term|term\s*3)\b/gi
+  };
+  const DATE_RE_SRC2 = `(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_RE_SRC})\\s+(\\d{4})`;
+
+  function extractDates2(seg, minY, maxY) {
+    const re = new RegExp(DATE_RE_SRC2, 'gi'); const out=[]; let m;
+    while((m=re.exec(seg))!==null){
+      const mo=MONTHS_IDX[m[2].toLowerCase()];
+      if(mo===undefined)continue;
+      const d=new Date(+m[3],mo,+m[1]);
+      if(d.getFullYear()>=minY&&d.getFullYear()<=maxY)out.push(d);
+    }
+    return out;
+  }
+
+  for(const yr of yrs){
+    const [sy,ey]=yr==='current'?[new Date().getFullYear(),new Date().getFullYear()+1]:yr.split('-').map(Number);
+    data[yr]={year:yr,autumn:null,spring:null,summer:null};
+    const termPos={};
+    for(const[t,re] of Object.entries(TERM_PATS)){re.lastIndex=0;const m=re.exec(text);if(m)termPos[t]=m.index;}
+    const allPos=Object.values(termPos).sort((a,b)=>a-b);
+    for(const[t,sp] of Object.entries(termPos)){
+      const np=allPos.find(p=>p>sp)||Math.min(text.length,sp+1200);
+      const seg=text.substring(Math.max(0,sp-20),np);
+      const dates=extractDates2(seg,sy-1,ey+1).sort((a,b)=>a-b);
+      if(dates.length<2)continue;
+      const htI=seg.toLowerCase().search(/half[\s-]?term/);
+      let hs=null,he=null;
+      if(htI>-1){
+        const htSeg=seg.substring(Math.max(0,htI-20),Math.min(seg.length,htI+300));
+        const htD=extractDates2(htSeg,sy-1,ey+1).sort((a,b)=>a-b);
+        if(htD.length>=1)hs=htD[0];if(htD.length>=2)he=htD[htD.length-1];
+      }
+      data[yr][t]={start:dates[0],end:dates[dates.length-1],halfTermStart:hs,halfTermEnd:he};
+    }
+    if(!data[yr].autumn&&!data[yr].spring&&!data[yr].summer)delete data[yr];
+  }
+  return data;
+}
+
+function extractTables(html) {
+  const doc = new DOMParser().parseFromString(html,'text/html');
+  const out=[];
+  doc.querySelectorAll('table').forEach(t=>{
+    const headers=[...t.querySelectorAll('th')].map(h=>h.textContent.trim());
+    const rows=[...t.querySelectorAll('tr')].map(r=>[...r.querySelectorAll('td,th')].map(c=>c.textContent.trim()).filter(Boolean)).filter(r=>r.length);
+    if(rows.length>1) out.push({headers,rows});
+  });
+  return out;
+}
+
+// ─── UI ───────────────────────────────────────────────────
+const resultsEl = document.getElementById('results');
+const setProgress = p => document.getElementById('progress-bar').style.width = p+'%';
+
+function showLoading(msg) {
+  resultsEl.innerHTML=`<div class="loading-state"><div class="spinner"></div><p>${msg}</p><p id="proxy-status"></p></div>`;
+}
+function setProxyStatus(msg) {
+  const el=document.getElementById('proxy-status');
+  if(el) el.textContent=msg;
+}
+
+function showError(school, urls) {
+  const us=Array.isArray(urls)?urls:[urls];
+  const links=us.slice(0,4).map((u,i)=>`<a class="source-link" href="${u}" target="_blank" rel="noopener">${us.length>1?`📄 Document ${i+1}`:'🔗 Official website'}</a>`).join('');
+  const workerHint=WORKER_PROXY?'':
+    `<div class="error-note"><strong>💡 Fix:</strong> Deploy <code>cloudflare-worker.js</code> to your free Cloudflare Workers account and set <code>WORKER_PROXY</code> at the top of this file. Takes ~5 minutes and permanently fixes fetch reliability.</div>`;
+  resultsEl.innerHTML=`<div class="error-state"><h3>Couldn't load term dates</h3><p>The public proxy services are currently unreliable. View term dates directly:</p><div class="error-links">${links}</div>${workerHint}</div>`;
+}
+
+function pdfLinksHtml(school) {
+  return `<div class="pdf-links">${school.pdfs.map((p,i)=>`
+    <a class="pdf-link-card" href="${p.url}" target="_blank" rel="noopener" style="animation-delay:${i*0.06}s">
+      <span class="pdf-icon">📄</span>
+      <div class="pdf-info"><strong>${school.name}</strong><span>Academic Year ${p.label}</span></div>
+      <span class="pdf-arrow">→</span>
+    </a>`).join('')}</div>`;
+}
+
+function renderTermData(schoolKey, data, sourceUrl, tables, proxyName) {
+  const yrs=Object.keys(data).sort();
+  if(!yrs.length) {
+    if(tables&&tables.length) return renderTables(SCHOOLS[schoolKey], tables, sourceUrl, proxyName);
+    return showError(SCHOOLS[schoolKey], sourceUrl);
+  }
+
+  const badge=proxyName?`<span class="proxy-badge"><span class="proxy-dot ${proxyName==='Worker'?'ok':'fallback'}"></span>${proxyName}</span>`:'';
+
+  let html=`<div class="section-label" style="display:flex;align-items:center;justify-content:space-between"><span>Academic Year</span>${badge}</div>
+<div class="year-tabs" role="tablist">
+${yrs.map((y,i)=>`<button class="year-tab ${i?'':'active'}" role="tab" aria-selected="${!i}" data-year="${y}">${y}</button>`).join('')}
+</div>`;
+
+  yrs.forEach((y,i)=>{
+    html+=`<div class="year-panel ${i?'':'active'}" id="yp-${y.replace(/\W/g,'')}">
+${renderYear(data[y])}
+<div class="source-footer">
+  <span>From official school source</span>
+  <a class="view-source" href="${Array.isArray(sourceUrl)?sourceUrl[0]:sourceUrl}" target="_blank" rel="noopener">🔗 View source</a>
+</div></div>`;
+  });
+
+  resultsEl.innerHTML=html;
+
+  resultsEl.querySelectorAll('.year-tab').forEach(t=>{
+    t.addEventListener('click',()=>{
+      resultsEl.querySelectorAll('.year-tab').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false');});
+      resultsEl.querySelectorAll('.year-panel').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active'); t.setAttribute('aria-selected','true');
+      const p=document.getElementById('yp-'+t.dataset.year.replace(/\W/g,''));
+      if(p) p.classList.add('active');
+    });
+  });
+}
+
+function renderYear(yd) {
+  const defs=[{k:'autumn',l:'Autumn Term',c:'term-autumn'},{k:'spring',l:'Spring Term',c:'term-spring'},{k:'summer',l:'Summer Term',c:'term-summer'}];
+  return `<div class="terms-grid">${defs.map(d=>{
+    const t=yd[d.k];
+    if(!t) return `<div class="term-card ${d.c}"><div class="term-header"><span class="term-dot"></span><h3>${d.l}</h3></div><div class="term-body"><div class="date-row"><span class="date-label">Dates</span><span class="date-value" style="color:var(--text-muted)">Not available</span></div></div></div>`;
+    const w=weeks(t.start,t.end);
+    let ht='';
+    if(t.halfTermStart||t.halfTermEnd){
+      const s=t.halfTermStart?fmtShort(t.halfTermStart):'';
+      const e=t.halfTermEnd?fmtShort(t.halfTermEnd):'';
+      ht=`<div class="date-row half-term-row"><span class="date-label">Half Term</span><span class="date-value">${s&&e?`${s} – ${e}`:s||e}</span></div>`;
+    }
+    return `<div class="term-card ${d.c}">
+<div class="term-header"><span class="term-dot"></span><h3>${d.l}</h3>${w?`<span class="term-weeks">${w}w</span>`:''}</div>
+<div class="term-body">
+  <div class="date-row"><span class="date-label">Starts</span><span class="date-value">${fmtDate(t.start)}</span></div>
+  ${ht}
+  <div class="date-row"><span class="date-label">Ends</span><span class="date-value">${fmtDate(t.end)}</span></div>
+</div></div>`;
+  }).join('')}</div>`;
+}
+
+function renderTables(school, tables, sourceUrl, proxyName) {
+  let html='';
+  tables.slice(0,5).forEach((t,i)=>{
+    if(t.rows.length<2)return;
+    const hr=t.headers.length?t.headers:t.rows[0];
+    const br=t.headers.length?t.rows:t.rows.slice(1);
+    html+=`<div class="raw-table-wrap"><div class="raw-table-title">📅 ${hr[0]||'Term Dates'}</div><div class="table-scroll"><table class="raw-table"><thead><tr>${hr.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${br.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+  });
+  html+=`<div class="source-footer"><span>Data from official source</span><a class="view-source" href="${typeof sourceUrl==='string'?sourceUrl:sourceUrl[0]}" target="_blank" rel="noopener">🔗 View source</a></div>`;
+  resultsEl.innerHTML=html;
+}
+
+// ─── LOAD SCHOOL ──────────────────────────────────────────
+async function loadSchool(key) {
+  const school=SCHOOLS[key];
+  showLoading(`Loading ${school.name}…`);
+  setProgress(15);
+
+  try {
+    if(school.type==='html') {
+      const {result:html, proxyName}=await fetchWithFallback(school.url, n=>setProxyStatus(`Trying ${n}…`));
+      setProgress(75);
+      const parsed=parseTermsFromText(html);
+      const tables=extractTables(html);
+      setProgress(95);
+      if(Object.keys(parsed).length) renderTermData(key,parsed,school.url,tables,proxyName);
+      else if(tables.length) renderTables(school,tables,school.url,proxyName);
+      else showError(school,school.url);
+
+    } else if(school.type==='pdfs') {
+      // Show links immediately so user can always access PDFs
+      resultsEl.innerHTML=pdfLinksHtml(school)+
+        `<div class="loading-state" style="padding:30px 20px"><div class="spinner"></div><p>Extracting from PDFs…</p><p id="proxy-status"></p></div>`;
+
+      const allParsed={};
+      let ok=0, lastProxy='';
+
+      for(let i=0;i<school.pdfs.length;i++) {
+        const pdf=school.pdfs[i];
+        setProgress(20+Math.round(i/school.pdfs.length*65));
+        try {
+          const {result:buf, proxyName}=await fetchWithFallback(pdf.url,
+            n=>setProxyStatus(`Year ${i+1}/${school.pdfs.length} — trying ${n}…`));
+          lastProxy=proxyName;
+          const {text: txt}=await pdfToText(buf);
+          const parsed=parseTermsFromText(txt);
+          if(Object.keys(parsed).length) {
+            Object.assign(allParsed, parsed);
+          } else {
+            allParsed[pdf.label]={ year:pdf.label, autumn:null, spring:null, summer:null };
+          }
+          ok++;
+        } catch(e) {
+          console.warn('PDF failed', pdf.url, e.message);
+          allParsed[pdf.label]={ year:pdf.label, autumn:null, spring:null, summer:null };
+        }
+      }
+
+      setProgress(95);
+
+      const hasRealData = Object.values(allParsed).some(y => y.autumn || y.spring || y.summer);
+
+      if(ok > 0) {
+        // Always render the nice year/term UI regardless of whether dates parsed
+        renderTermData(key, allParsed, school.pdfs[0].url, null, lastProxy);
+
+        // Append source PDF links below the term cards
+        const srcDiv = document.createElement('div');
+        srcDiv.style.marginTop = '16px';
+        srcDiv.innerHTML = `<div class="section-label">Source Documents</div>${pdfLinksHtml(school)}`;
+        resultsEl.appendChild(srcDiv);
+      } else {
+        // Total failure — not even a fetch worked
+        resultsEl.innerHTML = pdfLinksHtml(school) + `
+          <div class="error-state" style="margin-top:16px">
+            <h3>Could not fetch PDFs</h3>
+            <p>Tap a document above to view term dates directly on the official site.</p>
+          </div>`;
+      }
+    }
+
+    setProgress(100);
+    setTimeout(()=>setProgress(0),700);
+
+  } catch(err) {
+    console.error('loadSchool error:',err);
+    setProgress(0);
+    showError(school, school.type==='pdfs'?school.pdfs.map(p=>p.url):school.url);
+  }
+}
+
+// ─── SCHOOL BUTTONS ───────────────────────────────────────
+let activeSchool=null;
+
+function activateSchool(key, scrollToResults) {
+  if(activeSchool===key) return;
+  activeSchool=key;
+  saveSchool(key);
+  document.querySelectorAll('.school-btn').forEach(b=>{
+    const on=b.dataset.school===key;
+    b.classList.toggle('active',on);
+    b.setAttribute('aria-pressed',on?'true':'false');
+  });
+  if(scrollToResults && window.innerWidth<600) {
+    setTimeout(()=>resultsEl.scrollIntoView({behavior:'smooth',block:'start'}),150);
+  }
+  loadSchool(key);
+}
+
+document.querySelectorAll('.school-btn').forEach(b=>
+  b.addEventListener('click',()=>activateSchool(b.dataset.school,true))
+);
+
+// ─── SETUP BANNER ─────────────────────────────────────────
+(function(){
+  try {
+    const dismissed=localStorage.getItem(LS_SETUP);
+    if(!WORKER_PROXY && !dismissed) document.getElementById('setup-banner').classList.remove('hidden');
+  } catch {}
+  document.getElementById('setup-dismiss').addEventListener('click',()=>{
+    document.getElementById('setup-banner').classList.add('hidden');
+    try { localStorage.setItem(LS_SETUP,'1'); } catch {}
+  });
+})();
+
+// ─── PWA ──────────────────────────────────────────────────
+function makeIcon(sz) {
+  const c=document.createElement('canvas'); c.width=c.height=sz;
+  const x=c.getContext('2d');
+  x.fillStyle='#0d3446'; x.fillRect(0,0,sz,sz);
+  x.font=`${sz*0.55}px serif`; x.textAlign='center'; x.textBaseline='middle';
+  x.fillText('🌊',sz/2,sz/2);
+  return c.toDataURL('image/png');
+}
+const mf={name:'Guernsey Term Dates',short_name:'GY Terms',display:'standalone',background_color:'#0d3446',theme_color:'#0d3446',start_url:location.href,icons:[{src:makeIcon(192),sizes:'192x192',type:'image/png'},{src:makeIcon(512),sizes:'512x512',type:'image/png'}]};
+document.head.appendChild(Object.assign(document.createElement('link'),{rel:'manifest',href:URL.createObjectURL(new Blob([JSON.stringify(mf)],{type:'application/json'}))}));
+document.head.appendChild(Object.assign(document.createElement('link'),{rel:'apple-touch-icon',href:makeIcon(192)}));
+if('serviceWorker' in navigator) {
+  const sw=`const C='gy-v3';self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['/'])));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))));self.clients.claim();});self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>new Response('Offline'))));});`;
+  navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'application/javascript'}))).catch(()=>{});
+}
+
+// Install prompt
+let dp=null;
+const ib=document.getElementById('install-banner');
+const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;
+const isStandalone=()=>window.matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+
+if(!isStandalone()) {
+  window.addEventListener('beforeinstallprompt',e=>{
+    e.preventDefault(); dp=e;
+    document.getElementById('banner-instruction').textContent='Install for quick access from your home screen.';
+    const btn=document.getElementById('install-btn');
+    btn.textContent='Install App';
+    btn.onclick=async()=>{ if(dp){dp.prompt();const{outcome}=await dp.userChoice;dp=null;if(outcome==='accepted')ib.classList.add('hidden');} };
+    ib.classList.remove('hidden');
+  });
+  if(isIOS()) {
+    setTimeout(()=>{
+      document.getElementById('banner-instruction').textContent='Tap Share (□↑) then "Add to Home Screen".';
+      const btn=document.getElementById('install-btn');
+      btn.textContent='How?';
+      btn.onclick=()=>document.getElementById('ios-modal').classList.remove('hidden');
+      ib.classList.remove('hidden');
+    },2500);
+  }
+}
+document.getElementById('banner-close').addEventListener('click',()=>ib.classList.add('hidden'));
+document.getElementById('ios-dismiss').addEventListener('click',()=>document.getElementById('ios-modal').classList.add('hidden'));
+document.getElementById('ios-modal').addEventListener('click',e=>{if(e.target===document.getElementById('ios-modal'))document.getElementById('ios-modal').classList.add('hidden');});
+
+// ─── AUTO-LOAD LAST SELECTION ─────────────────────────────
+window.addEventListener('DOMContentLoaded',()=>{
+  const last=getLastSchool();
+  if(last && SCHOOLS[last]) setTimeout(()=>activateSchool(last,false),250);
+});
+</script>
+</body>
+</html>
