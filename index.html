@@ -700,12 +700,14 @@ const TERM_YEAR_FROM_AC = {
 
 function parseHalfTermDates(line, year) {
   const DAY_OPT = '(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)?\\s*';
-  // Pattern A: "22 to Friday 31 October" or "27th October to Friday 31st October" — shared month at end
+  // Pattern A: "27th October to Friday 31st October" or "31st May to Friday 4th June"
+  // Capture optional start-month separately so we use the right month for each date
   let m = line.match(new RegExp(
-    `(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:${MONTH_RE_SRC})?\\s*to\\s+${DAY_OPT}(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_RE_SRC})`, 'i'));
+    `(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_RE_SRC})?\\s*to\\s+${DAY_OPT}(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_RE_SRC})`, 'i'));
   if (m) {
-    const mo = MONTHS_IDX[m[3].toLowerCase()];
-    if (mo !== undefined) return [new Date(year, mo, +m[1]), new Date(year, mo, +m[2])];
+    const endMo  = MONTHS_IDX[m[4].toLowerCase()];
+    const startMo = m[2] ? (MONTHS_IDX[m[2].toLowerCase()] ?? endMo) : endMo;
+    if (endMo !== undefined) return [new Date(year, startMo, +m[1]), new Date(year, endMo, +m[3])];
   }
   // Pattern B: two separate "DD Month" dates
   const dates = [];
@@ -928,14 +930,35 @@ function parseTermsGeneric(text) {
   return data;
 }
 
-// Convert raw HTML to plain text for parsing
+// Convert raw HTML to plain text, preserving line structure from block/table elements
 function htmlToText(html) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   doc.querySelectorAll('script,style,nav,header,footer,noscript').forEach(el => el.remove());
-  // textContent works on DOMParser docs (innerText does not — requires rendered DOM)
-  const raw = (doc.body || doc.documentElement).textContent || '';
-  // Collapse excess whitespace while preserving line breaks
-  return raw.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+
+  const BLOCK = new Set(['p','div','section','article','li','h1','h2','h3','h4','h5','h6',
+                         'tr','table','thead','tbody','tfoot','blockquote','pre','br','hr']);
+
+  function walk(node) {
+    if (node.nodeType === 3) return node.textContent;
+    if (node.nodeType !== 1) return '';
+    const tag = node.tagName.toLowerCase();
+    // td/th: add tab so adjacent cells on same row are separated
+    if (tag === 'td' || tag === 'th') {
+      return [...node.childNodes].map(walk).join('') + '\t';
+    }
+    const inner = [...node.childNodes].map(walk).join('');
+    if (tag === 'br') return '\n';
+    if (BLOCK.has(tag)) return '\n' + inner + '\n';
+    return inner;
+  }
+
+  const raw = walk(doc.body || doc.documentElement);
+  // Normalise: collapse whitespace within each line, drop blank lines
+  return raw
+    .split('\n')
+    .map(l => l.replace(/[ \t]+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n');
 }
 
 // Extract structured tables from HTML for fallback parsing
