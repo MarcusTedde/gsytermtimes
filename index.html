@@ -201,6 +201,36 @@
   @media (min-width: 600px) { .school-grid { grid-template-columns: repeat(3, 1fr); } }
   @media (min-width: 760px) { header { padding: 56px 40px 40px; } main { padding: 32px 24px 80px; } }
 
+  /* TERM DETAIL POPUP */
+  #term-popup-overlay { position: fixed; inset: 0; background: rgba(13,52,70,0.65); z-index: 1100; display: flex; align-items: center; justify-content: center; padding: 16px; opacity: 0; transition: opacity 0.2s ease; }
+  #term-popup-overlay.visible { opacity: 1; }
+  #term-popup-overlay.hidden { display: none; }
+  .term-popup { background: var(--white); border-radius: var(--radius); max-width: 520px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 16px 64px rgba(13,52,70,0.3); animation: popupIn 0.25s ease; position: relative; }
+  @keyframes popupIn { from { opacity: 0; transform: scale(0.95) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+  .popup-close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,0.06); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text-muted); transition: var(--transition); z-index: 2; line-height: 1; }
+  .popup-close:hover { background: rgba(0,0,0,0.12); color: var(--text); }
+  .popup-header { padding: 20px 20px 14px; border-bottom: 1.5px solid var(--sand-dark); }
+  .popup-header h3 { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 600; padding-right: 32px; }
+  .popup-header .popup-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+  .popup-body { padding: 16px 20px 20px; }
+  .popup-section { margin-bottom: 16px; }
+  .popup-section:last-child { margin-bottom: 0; }
+  .popup-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .popup-section-title .popup-icon { font-size: 14px; }
+  .popup-detail-row { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--sand); gap: 12px; }
+  .popup-detail-row:last-child { border-bottom: none; }
+  .popup-detail-label { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; }
+  .popup-detail-value { font-size: 13px; color: var(--text-muted); text-align: right; flex-shrink: 0; }
+  .popup-detail-note { font-size: 12px; color: var(--text-muted); font-style: italic; padding: 4px 0; line-height: 1.4; }
+  .popup-detail-note strong { font-weight: 600; font-style: normal; color: var(--text); }
+  .popup-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 8px; }
+  .popup-badge.staff { background: #fff3e0; color: #e67e00; }
+  .popup-badge.pupils { background: #e8f5e9; color: #2e7d32; }
+  .popup-badge.halfterm { background: #f3edf8; color: var(--halfterm); }
+  .popup-badge.bank { background: #e3f2fd; color: #1565c0; }
+  .popup-badge.finish { background: #fce4ec; color: #c62828; }
+  .term-card { cursor: pointer; }
+
   .hidden { display: none !important; }
   .mt-16 { margin-top: 16px; }
   .year-panel { display: none; }
@@ -243,6 +273,18 @@
       <div class="ios-step"><div class="ios-step-num">3</div><div class="ios-step-text">Tap <strong>Add</strong> — done! 🎉</div></div>
     </div>
     <button class="ios-dismiss" id="ios-dismiss">Got it!</button>
+  </div>
+</div>
+
+<!-- Term Detail Popup -->
+<div id="term-popup-overlay" class="hidden" role="dialog" aria-modal="true">
+  <div class="term-popup">
+    <button class="popup-close" id="popup-close" aria-label="Close">&#x2715;</button>
+    <div class="popup-header">
+      <h3 id="popup-title"></h3>
+      <div class="popup-subtitle" id="popup-subtitle"></div>
+    </div>
+    <div class="popup-body" id="popup-body"></div>
   </div>
 </div>
 
@@ -816,11 +858,13 @@ function parseTermsFromText(text) {
 
     // Ensure term bucket exists
     if (!yearData[curAcYear][curTermKey]) {
-      yearData[curAcYear][curTermKey] = { start: null, end: null, halfTermStart: null, halfTermEnd: null, startDetails: [] };
+      yearData[curAcYear][curTermKey] = { start: null, end: null, halfTermStart: null, halfTermEnd: null, startDetails: [], notes: [], endDetails: [] };
     }
     const bucket = yearData[curAcYear][curTermKey];
-    // Ensure startDetails array exists (for buckets created elsewhere)
+    // Ensure arrays exist (for buckets created elsewhere)
     if (!bucket.startDetails) bucket.startDetails = [];
+    if (!bucket.notes) bucket.notes = [];
+    if (!bucket.endDetails) bucket.endDetails = [];
 
     // ── Start of Term ──
     // Triggers: "Term Starts", "Term begins", "Start of Term"
@@ -831,11 +875,33 @@ function parseTermsFromText(text) {
 
       // Extract label from parenthetical, e.g. "Term Starts (Pupils - Primary and Special Schools)"
       // Also handle inline labels like "Term begins Nursery Y1-Y13" (Blanchelande format)
-      const labelMatch = line.match(/\(([^)]+)\)/);
+      // And trailing info after the date like "Middle Prep to Form III (Inclusive)"
+      const allParens = [...line.matchAll(/\(([^)]+)\)/g)].map(m => m[1].trim());
       let label = '';
-      if (labelMatch) {
-        label = labelMatch[1].trim();
-      } else {
+      if (allParens.length > 0) {
+        // First paren is usually role (e.g. "Pupils", "Staff")
+        label = allParens[0];
+        // Additional parens after the date often contain year group info
+        // e.g. "Start of Term (Pupils) Thursday 4th September Middle Prep to Form III (Inclusive)"
+        if (allParens.length > 1) {
+          // Append extra parenthetical info
+          label += ' — ' + allParens.slice(1).join(', ');
+        }
+      }
+      // Also capture text AFTER the date that describes year groups
+      // e.g. "...4th September Middle Prep to Form III (Inclusive)"
+      const afterDateMatch = line.match(new RegExp(
+        `\\d{1,2}(?:st|nd|rd|th)?\\s+(?:${MONTH_RE_SRC})\\s+(.+)$`, 'i'));
+      if (afterDateMatch) {
+        let trailing = afterDateMatch[1].replace(/\([^)]*\)/g, '').trim();
+        // Remove "inclusive" if it was in parens we already captured
+        trailing = trailing.replace(/^\s*[-–—]\s*/, '').trim();
+        if (trailing && trailing.length > 2 && !/^(term|start|end|half|staff|inset)\b/i.test(trailing)) {
+          // This is year group / cohort info
+          label = trailing + (label && !/^(pupils?|staff|all)\s*$/i.test(label) ? ' (' + label + ')' : '');
+        }
+      }
+      if (!label) {
         // Try to extract text after "term begins/starts" that isn't the date
         const inlineMatch = line.match(/\bterm\s+(?:begins?|starts?)\s+(.+?)(?:\s*[-–—]\s*\d|\s*$)/i);
         if (inlineMatch) {
@@ -867,6 +933,25 @@ function parseTermsFromText(text) {
     if (/\b(end of term|term ends?)\b/i.test(line) && !/\bhalf[\s-]?term\b/i.test(line)) {
       const d = parseDateFromLine(line, curYear);
       if (d) bucket.end = d;
+      // Capture end-of-term label (e.g. year groups or notes)
+      const endLabel = line.match(/\(([^)]+)\)/);
+      if (endLabel) {
+        bucket.endDetails.push({ date: d, label: endLabel[1].trim() });
+      }
+      // Check for finish time note on same line
+      if (/\bfinish\b/i.test(line) && /\d{1,2}[.:]\d{2}/.test(line)) {
+        bucket.notes.push({ type: 'end-finish', text: line });
+      }
+      // Look ahead for finish-time lines that follow
+      if (i + 1 < lines.length && /^\*?\s*(?:pre-school|prep|junior|senior|normal)\b/i.test(lines[i + 1]) && /finish/i.test(lines[i + 1])) {
+        bucket.notes.push({ type: 'end-finish', text: lines[i + 1] });
+        i++;
+        // Check for another line
+        if (i + 1 < lines.length && /^\*?\s*(?:pre-school|prep|junior|senior|normal)\b/i.test(lines[i + 1]) && /finish/i.test(lines[i + 1])) {
+          bucket.notes.push({ type: 'end-finish', text: lines[i + 1] });
+          i++;
+        }
+      }
       continue;
     }
 
@@ -899,7 +984,51 @@ function parseTermsFromText(text) {
       const [hs, he] = parseHalfTermDates(line, curYear);
       if (hs) bucket.halfTermStart = hs;
       if (he) bucket.halfTermEnd   = he;
+      // Capture any finish time note on the half-term line
+      if (/finish/i.test(line) && /\d{1,2}[.:]\d{2}/.test(line)) {
+        bucket.notes.push({ type: 'halfterm-finish', text: line });
+      }
+      // Look ahead for finish-time lines after half-term
+      if (i + 1 < lines.length && /^\*?\s*(?:pre-school|prep|junior|senior|normal)\b/i.test(lines[i + 1]) && /finish/i.test(lines[i + 1])) {
+        bucket.notes.push({ type: 'halfterm-finish', text: lines[i + 1] });
+        i++;
+        if (i + 1 < lines.length && /^\*?\s*(?:pre-school|prep|junior|senior|normal)\b/i.test(lines[i + 1]) && /finish/i.test(lines[i + 1])) {
+          bucket.notes.push({ type: 'halfterm-finish', text: lines[i + 1] });
+          i++;
+        }
+      }
       continue;
+    }
+
+    // ── Staff INSET day ──
+    if (/\b(inset|staff\s+inset|inset\s+day|staff\s+training)\b/i.test(line) && !/\b(start of term|term starts?|term begins?)\b/i.test(line)) {
+      const d = parseDateFromLine(line, curYear);
+      if (d) {
+        bucket.startDetails.push({ date: d, label: 'Staff INSET', isStaff: true });
+      }
+      bucket.notes.push({ type: 'inset', text: line });
+      continue;
+    }
+
+    // ── Bank Holiday ──
+    if (/\bbank\s+holiday\b/i.test(line)) {
+      const d = parseDateFromLine(line, curYear);
+      bucket.notes.push({ type: 'bank-holiday', text: line, date: d });
+      continue;
+    }
+
+    // ── Finish time notes (e.g. "Pre-School and Prep finish 11.45") ──
+    if (/\bfinish\b/i.test(line) && /\d{1,2}[.:]\d{2}/.test(line)) {
+      bucket.notes.push({ type: 'finish-time', text: line });
+      continue;
+    }
+
+    // ── End of Term detail notes ──
+    if (/\bend of term\b/i.test(line) || /\bterm ends?\b/i.test(line)) {
+      // Already handled above for the date, but capture finish times
+      if (/\bfinish\b/i.test(line) || /\d{1,2}[.:]\d{2}/.test(line)) {
+        bucket.notes.push({ type: 'end-finish', text: line });
+      }
     }
   }
 
@@ -1150,7 +1279,17 @@ ${renderYear(data[y])}
       if(p) p.classList.add('active');
     });
   });
+
+  // Attach popup click handlers to term cards
+  resultsEl.querySelectorAll('.term-card[data-term-key]').forEach(card => {
+    card.addEventListener('click', () => showTermPopup(card.dataset.termKey));
+    card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showTermPopup(card.dataset.termKey); } });
+  });
 }
+
+// Global store for term data so popup can access it
+let _termDataStore = {};
+let _currentSchoolKey = null;
 
 function renderYear(yd) {
   const defs=[{k:'autumn',l:'Autumn Term',c:'term-autumn'},{k:'spring',l:'Spring Term',c:'term-spring'},{k:'summer',l:'Summer Term',c:'term-summer'}];
@@ -1158,6 +1297,10 @@ function renderYear(yd) {
     const t=yd[d.k];
     if(!t) return `<div class="term-card ${d.c}"><div class="term-header"><span class="term-dot"></span><h3>${d.l}</h3></div><div class="term-body"><div class="date-row"><span class="date-label">Dates</span><span class="date-value" style="color:var(--text-muted)">Not available</span></div></div></div>`;
     const w=weeks(t.start,t.end);
+
+    // Store term data for popup access
+    const storeKey = `${yd.year}_${d.k}`;
+    _termDataStore[storeKey] = { term: t, termLabel: d.l, termClass: d.c, year: yd.year, weeks: w };
 
     // ── Build start rows ──
     let startHtml = '';
@@ -1188,7 +1331,7 @@ function renderYear(yd) {
       const e=t.halfTermEnd?fmtShort(t.halfTermEnd):'';
       ht=`<div class="date-row half-term-row"><span class="date-label">Half Term</span><span class="date-value">${s&&e?`${s} – ${e}`:s||e}</span></div>`;
     }
-    return `<div class="term-card ${d.c}">
+    return `<div class="term-card ${d.c}" data-term-key="${storeKey}" role="button" tabindex="0" title="Click for more details">
 <div class="term-header"><span class="term-dot"></span><h3>${d.l}</h3>${w?`<span class="term-weeks">${w}w</span>`:''}</div>
 <div class="term-body">
   ${startHtml}
@@ -1198,9 +1341,184 @@ function renderYear(yd) {
   }).join('')}</div>`;
 }
 
+// ─── TERM DETAIL POPUP ────────────────────────────────────
+function showTermPopup(storeKey) {
+  const data = _termDataStore[storeKey];
+  if (!data) return;
+  const { term: t, termLabel, year, weeks: w } = data;
+  const school = SCHOOLS[_currentSchoolKey];
+  const overlay = document.getElementById('term-popup-overlay');
+  const titleEl = document.getElementById('popup-title');
+  const subtitleEl = document.getElementById('popup-subtitle');
+  const bodyEl = document.getElementById('popup-body');
+
+  titleEl.textContent = termLabel;
+  subtitleEl.textContent = `${school.name} — ${year}`;
+
+  let html = '';
+
+  // ── Start dates section ──
+  const details = t.startDetails && t.startDetails.length > 0 ? t.startDetails : null;
+  if (details && details.length > 0) {
+    html += `<div class="popup-section">`;
+    html += `<div class="popup-section-title"><span class="popup-icon">📅</span> Term Start Dates</div>`;
+
+    // Show staff INSET days first
+    const staffRows = details.filter(d => d.isStaff);
+    const pupilRows = details.filter(d => !d.isStaff);
+
+    for (const sd of staffRows) {
+      html += `<div class="popup-detail-row">
+        <span class="popup-detail-label"><span class="popup-badge staff">Staff</span> ${sd.label || 'Staff INSET'}</span>
+        <span class="popup-detail-value">${fmtDate(sd.date)}</span>
+      </div>`;
+    }
+    for (const sd of pupilRows) {
+      let label = sd.label || 'All Pupils';
+      label = label.replace(/^pupils\s*[-–—:]\s*/i, '').trim();
+      if (!label) label = 'All Pupils';
+      html += `<div class="popup-detail-row">
+        <span class="popup-detail-label"><span class="popup-badge pupils">Pupils</span> ${label}</span>
+        <span class="popup-detail-value">${fmtDate(sd.date)}</span>
+      </div>`;
+    }
+    html += `</div>`;
+  } else if (t.start) {
+    html += `<div class="popup-section">`;
+    html += `<div class="popup-section-title"><span class="popup-icon">📅</span> Term Start</div>`;
+    html += `<div class="popup-detail-row">
+      <span class="popup-detail-label">All pupils start</span>
+      <span class="popup-detail-value">${fmtDate(t.start)}</span>
+    </div>`;
+    html += `</div>`;
+  }
+
+  // ── Half Term section ──
+  if (t.halfTermStart || t.halfTermEnd) {
+    html += `<div class="popup-section">`;
+    html += `<div class="popup-section-title"><span class="popup-icon">🏖️</span> Half Term Break</div>`;
+    if (t.halfTermStart) {
+      html += `<div class="popup-detail-row">
+        <span class="popup-detail-label"><span class="popup-badge halfterm">Break up</span></span>
+        <span class="popup-detail-value">${fmtDate(t.halfTermStart)}</span>
+      </div>`;
+    }
+    if (t.halfTermEnd) {
+      html += `<div class="popup-detail-row">
+        <span class="popup-detail-label"><span class="popup-badge halfterm">Return</span></span>
+        <span class="popup-detail-value">${fmtDate(t.halfTermEnd)}</span>
+      </div>`;
+    }
+    // Show half-term finish time notes
+    const htFinishNotes = (t.notes || []).filter(n => n.type === 'halfterm-finish');
+    for (const n of htFinishNotes) {
+      html += `<div class="popup-detail-note"><span class="popup-badge finish">Finish times</span> ${cleanNoteText(n.text)}</div>`;
+    }
+    html += `</div>`;
+  }
+
+  // ── Bank Holidays ──
+  const bankNotes = (t.notes || []).filter(n => n.type === 'bank-holiday');
+  if (bankNotes.length > 0) {
+    html += `<div class="popup-section">`;
+    html += `<div class="popup-section-title"><span class="popup-icon">🏛️</span> Bank Holidays</div>`;
+    for (const n of bankNotes) {
+      html += `<div class="popup-detail-row">
+        <span class="popup-detail-label"><span class="popup-badge bank">Bank Holiday</span></span>
+        <span class="popup-detail-value">${n.date ? fmtDate(n.date) : cleanNoteText(n.text)}</span>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // ── End of Term section ──
+  if (t.end) {
+    html += `<div class="popup-section">`;
+    html += `<div class="popup-section-title"><span class="popup-icon">🔔</span> End of Term</div>`;
+    html += `<div class="popup-detail-row">
+      <span class="popup-detail-label">Term ends</span>
+      <span class="popup-detail-value">${fmtDate(t.end)}</span>
+    </div>`;
+    // Show end-of-term finish time notes
+    const endFinishNotes = (t.notes || []).filter(n => n.type === 'end-finish');
+    for (const n of endFinishNotes) {
+      html += `<div class="popup-detail-note"><span class="popup-badge finish">Finish times</span> ${cleanNoteText(n.text)}</div>`;
+    }
+    // Show end details with labels
+    if (t.endDetails && t.endDetails.length > 0) {
+      for (const ed of t.endDetails) {
+        html += `<div class="popup-detail-note">${ed.label}</div>`;
+      }
+    }
+    html += `</div>`;
+  }
+
+  // ── INSET Days ──
+  const insetNotes = (t.notes || []).filter(n => n.type === 'inset');
+  if (insetNotes.length > 0) {
+    html += `<div class="popup-section">`;
+    html += `<div class="popup-section-title"><span class="popup-icon">📋</span> INSET / Training Days</div>`;
+    for (const n of insetNotes) {
+      html += `<div class="popup-detail-note">${cleanNoteText(n.text)}</div>`;
+    }
+    html += `</div>`;
+  }
+
+  // ── General finish time notes ──
+  const finishNotes = (t.notes || []).filter(n => n.type === 'finish-time');
+  if (finishNotes.length > 0) {
+    html += `<div class="popup-section">`;
+    html += `<div class="popup-section-title"><span class="popup-icon">⏰</span> Finish Times</div>`;
+    for (const n of finishNotes) {
+      html += `<div class="popup-detail-note">${cleanNoteText(n.text)}</div>`;
+    }
+    html += `</div>`;
+  }
+
+  // ── Summary ──
+  if (w) {
+    html += `<div class="popup-section">`;
+    html += `<div class="popup-section-title"><span class="popup-icon">📊</span> Summary</div>`;
+    html += `<div class="popup-detail-row">
+      <span class="popup-detail-label">Term length</span>
+      <span class="popup-detail-value">${w} weeks</span>
+    </div>`;
+    html += `</div>`;
+  }
+
+  bodyEl.innerHTML = html;
+
+  overlay.classList.remove('hidden');
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+}
+
+function cleanNoteText(text) {
+  // Clean up raw note text for display: remove leading asterisks, trim
+  return text.replace(/^\*+\s*/, '').replace(/\s+/g, ' ').trim();
+}
+
+function closeTermPopup() {
+  const overlay = document.getElementById('term-popup-overlay');
+  overlay.classList.remove('visible');
+  setTimeout(() => overlay.classList.add('hidden'), 200);
+}
+
+// Popup event listeners
+document.getElementById('popup-close').addEventListener('click', closeTermPopup);
+document.getElementById('term-popup-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('term-popup-overlay')) closeTermPopup();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !document.getElementById('term-popup-overlay').classList.contains('hidden')) {
+    closeTermPopup();
+  }
+});
+
 // ─── LOAD SCHOOL ──────────────────────────────────────────
 async function loadSchool(key) {
   const school=SCHOOLS[key];
+  _termDataStore = {};
+  _currentSchoolKey = key;
   showLoading(`Loading ${school.name}…`);
   setProgress(15);
 
