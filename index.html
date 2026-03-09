@@ -980,9 +980,19 @@ function htmlToText(html) {
     if (node.nodeType === 3) return node.textContent;
     if (node.nodeType !== 1) return '';
     const tag = node.tagName.toLowerCase();
-    // td/th: add tab so adjacent cells on same row are separated
+    // td/th: flatten cell content to a single line (strip newlines from inner
+    // block elements like <p>) so date + description stay on one row
     if (tag === 'td' || tag === 'th') {
-      return [...node.childNodes].map(walk).join('') + '\t';
+      const raw = [...node.childNodes].map(walk).join('');
+      return raw.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim() + '\t';
+    }
+    // tr: filter out whitespace-only text nodes between cells so that
+    // inter-element newlines in the HTML source don't split cells apart
+    if (tag === 'tr') {
+      const inner = [...node.childNodes]
+        .filter(c => c.nodeType !== 3 || c.textContent.trim())
+        .map(walk).join('');
+      return '\n' + inner + '\n';
     }
     const inner = [...node.childNodes].map(walk).join('');
     if (tag === 'br') return '\n';
