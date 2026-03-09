@@ -175,14 +175,7 @@
   .proxy-dot.fallback { background: var(--amber); }
 
   /* Raw Tables */
-  .raw-table-wrap { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 16px; animation: cardIn 0.3s ease; }
-  .raw-table-title { padding: 14px 18px; background: var(--ocean); color: white; font-size: 14px; font-weight: 600; }
-  .table-scroll { overflow-x: auto; }
-  .raw-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  .raw-table th { background: var(--foam); color: var(--ocean); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 16px; text-align: left; }
-  .raw-table td { padding: 10px 16px; border-bottom: 1px solid var(--sand-dark); color: var(--text); vertical-align: top; }
-  .raw-table tr:last-child td { border-bottom: none; }
-  .raw-table tr:hover td { background: var(--sand); }
+
 
   /* PDF Links */
   .pdf-links { display: grid; gap: 10px; margin-bottom: 16px; }
@@ -691,22 +684,30 @@ const MONTH_RE_SRC = 'january|february|march|april|may|june|july|august|septembe
 const GUERNSEY_TERM_MAP = {
   michaelmas: { key: 'autumn', yearOffset: 0  },  // Michaelmas 2025 → autumn of 2025-2026
   lent:       { key: 'spring', yearOffset: -1 },  // Lent 2026 → spring of 2025-2026
+  hilary:     { key: 'spring', yearOffset: -1 },  // Hilary 2026 → spring of 2025-2026 (Blanchelande)
   trinity:    { key: 'summer', yearOffset: -1 },  // Trinity 2026 → summer of 2025-2026
   autumn:     { key: 'autumn', yearOffset: 0  },
   spring:     { key: 'spring', yearOffset: -1 },
   summer:     { key: 'summer', yearOffset: -1 }
 };
 
+// Year inferred from academic year heading for terms without explicit year
+const TERM_YEAR_FROM_AC = {
+  autumn: 0,   // first year of 2025-2026
+  spring: 1,   // second year
+  summer: 1
+};
+
 function parseHalfTermDates(line, year) {
   const DAY_OPT = '(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)?\\s*';
-  // Pattern A: "22 to Friday 31 October" or "22nd to 31st October" — shared month
+  // Pattern A: "22 to Friday 31 October" or "27th October to Friday 31st October" — shared month at end
   let m = line.match(new RegExp(
-    `(\\d{1,2})(?:st|nd|rd|th)?\\s+to\\s+${DAY_OPT}(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_RE_SRC})`, 'i'));
+    `(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:${MONTH_RE_SRC})?\\s*to\\s+${DAY_OPT}(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_RE_SRC})`, 'i'));
   if (m) {
     const mo = MONTHS_IDX[m[3].toLowerCase()];
     if (mo !== undefined) return [new Date(year, mo, +m[1]), new Date(year, mo, +m[2])];
   }
-  // Pattern B: two separate "DD Month" dates — "13th February to 20th February"
+  // Pattern B: two separate "DD Month" dates
   const dates = [];
   const re = new RegExp(`(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_RE_SRC})`, 'gi');
   let dm;
@@ -715,12 +716,11 @@ function parseHalfTermDates(line, year) {
     if (mo !== undefined) dates.push(new Date(year, mo, +dm[1]));
   }
   if (dates.length >= 2) return [dates[0], dates[dates.length - 1]];
-  if (dates.length === 1) return [dates[0], dates[0]]; // single half-term day
+  if (dates.length === 1) return [dates[0], dates[0]];
   return [null, null];
 }
 
 function parseDateFromLine(line, year) {
-  // "Thursday 4th September" or "Thursday 4 September" or "Monday 13 April"
   const m = line.match(new RegExp(
     `(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)?\\s*(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_RE_SRC})`, 'i'));
   if (m) {
@@ -732,13 +732,10 @@ function parseDateFromLine(line, year) {
 
 function parseTermsFromText(text) {
   // ── Step 1: Clean orphaned ordinal-only lines (EC PDF superscript artefact) ──
-  // Lines like "th", "st nd rd", "nd, rd th" — only ordinal suffixes and punctuation
   const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const cleaned = rawLines.filter(l => !/^(?:\s*(?:st|nd|rd|th)[,.\s]*)+$/i.test(l));
 
-  // ── Step 2: Join wrapped lines ──
-  // "...to Friday 31st" + "October inclusive" → merge when line ends in bare number/ordinal
-  // and next line starts with a month name
+  // ── Step 2: Join wrapped lines (e.g. "to Friday 31st" + "October inclusive") ──
   const monthStartRe = new RegExp(`^(${MONTH_RE_SRC})\\b`, 'i');
   const lines = [];
   for (let i = 0; i < cleaned.length; i++) {
@@ -752,27 +749,57 @@ function parseTermsFromText(text) {
   }
 
   const yearData = {};
-  let curAcYear = null;   // e.g. "2025-2026"
-  let curTermKey = null;  // "autumn"/"spring"/"summer"
-  let curYear    = null;  // numeric year for date parsing
+  let curAcYear    = null;   // e.g. "2025-2026"
+  let curAcYears   = null;   // [2025, 2026] — from standalone "2025-2026" heading
+  let curTermKey   = null;   // "autumn"/"spring"/"summer"
+  let curYear      = null;   // numeric year for date parsing
 
   for (let i = 0; i < lines.length; i++) {
     const line  = lines[i];
     const lower = line.toLowerCase();
 
-    // ── Detect term section heading ──
-    // Matches: "Michaelmas 2025", "Lent Term 2026", "Trinity 2026", "Autumn Term 2025" etc.
-    const headingM = lower.match(
-      /\b(michaelmas|lent|trinity|autumn|spring|summer)\s*(?:term\s*)?(\d{4})/);
-    if (headingM) {
-      const info   = GUERNSEY_TERM_MAP[headingM[1]];
-      curTermKey   = info.key;
-      curYear      = parseInt(headingM[2]);
+    // ── Detect standalone academic year heading: "2025-2026" or "2025/26" ──
+    const acYearM = lower.match(/\b(20\d{2})\s*[\/\-–]\s*(20\d{2}|\d{2})\b/);
+    if (acYearM && !lower.match(/\b(michaelmas|lent|hilary|trinity|autumn|spring|summer)\b/)) {
+      const y1 = parseInt(acYearM[1]);
+      const y2 = acYearM[2].length === 2 ? 2000 + parseInt(acYearM[2]) : parseInt(acYearM[2]);
+      if (Math.abs(y2 - y1) === 1) {
+        curAcYears = [y1, y2];
+        curAcYear  = `${y1}-${y2}`;
+        curTermKey = null; curYear = null; // reset until we see a term heading
+        if (!yearData[curAcYear]) {
+          yearData[curAcYear] = { year: curAcYear, autumn: null, spring: null, summer: null };
+        }
+      }
+      // Don't continue — the line might also have other useful info
+    }
+
+    // ── Detect term heading WITH explicit year ──
+    // e.g. "Michaelmas Term 2025", "Hilary 2026", "Autumn Term 2025"
+    const headingWithYear = lower.match(
+      /\b(michaelmas|lent|hilary|trinity|autumn|spring|summer)\s*(?:term\s*)?(\d{4})/);
+    if (headingWithYear) {
+      const info      = GUERNSEY_TERM_MAP[headingWithYear[1]];
+      curTermKey      = info.key;
+      curYear         = parseInt(headingWithYear[2]);
       const acYrStart = curYear + info.yearOffset;
-      curAcYear    = `${acYrStart}-${acYrStart + 1}`;
+      curAcYear       = `${acYrStart}-${acYrStart + 1}`;
+      curAcYears      = [acYrStart, acYrStart + 1];
       if (!yearData[curAcYear]) {
         yearData[curAcYear] = { year: curAcYear, autumn: null, spring: null, summer: null };
       }
+      continue;
+    }
+
+    // ── Detect term heading WITHOUT year (relies on curAcYears from above) ──
+    // e.g. "Autumn Term", "Spring Term", "Summer Term" — States schools format
+    const headingNoYear = lower.match(
+      /^\s*(autumn|spring|summer)\s*term\s*$/);
+    if (headingNoYear && curAcYears) {
+      const termName = headingNoYear[1];
+      const info     = GUERNSEY_TERM_MAP[termName];
+      curTermKey     = info.key;
+      curYear        = curAcYears[TERM_YEAR_FROM_AC[termName]];
       continue;
     }
 
@@ -785,23 +812,36 @@ function parseTermsFromText(text) {
     const bucket = yearData[curAcYear][curTermKey];
 
     // ── Start of Term ──
-    if (/\b(start of term|term starts?)\b/i.test(line)) {
-      // Skip staff/INSET/reception/induction lines; only set start once
-      if (/staff|inset|induction/i.test(line)) continue;
-      if (bucket.start) continue; // already set — first non-staff line wins
+    // Triggers: "Term Starts", "Term begins", "Start of Term"
+    if (/\b(start of term|term starts?|term begins?)\b/i.test(line)) {
+      if (/staff|inset|induction|smt/i.test(line)) continue;
+      if (bucket.start) continue; // first pupils line wins
       const d = parseDateFromLine(line, curYear);
       if (d) bucket.start = d;
       continue;
     }
 
     // ── End of Term ──
+    // Triggers: "Term Ends", "Term ends", "Break up" (end-of-term usage)
     if (/\b(end of term|term ends?)\b/i.test(line)) {
       const d = parseDateFromLine(line, curYear);
       if (d) bucket.end = d;
       continue;
     }
 
-    // ── Half Term ──
+    // ── Half Term start/end (separate lines for break-up and return) ──
+    if (/\bbreak up for half[\s-]?term\b/i.test(line)) {
+      const d = parseDateFromLine(line, curYear);
+      if (d) bucket.halfTermStart = d;
+      continue;
+    }
+    if (/\breturn from half[\s-]?term\b/i.test(line)) {
+      const d = parseDateFromLine(line, curYear);
+      if (d) bucket.halfTermEnd = d;
+      continue;
+    }
+
+    // ── Half Term (single line with range or single date) ──
     if (/\bhalf[\s-]?term\b/i.test(line)) {
       const [hs, he] = parseHalfTermDates(line, curYear);
       if (hs) bucket.halfTermStart = hs;
@@ -815,7 +855,6 @@ function parseTermsFromText(text) {
     const yd = yearData[yr];
     if (!yd.autumn && !yd.spring && !yd.summer) delete yearData[yr];
     else {
-      // Clean up any null-start/null-end term buckets
       for (const t of ['autumn','spring','summer']) {
         if (yd[t] && !yd[t].start && !yd[t].end) yd[t] = null;
       }
@@ -845,15 +884,17 @@ function parseTermsGeneric(text) {
   }
 
   const TERM_PATS = {
-    autumn:/\b(autumn\s*term|term\s*1)\b/gi,
-    spring:/\b(spring\s*term|term\s*2)\b/gi,
-    summer:/\b(summer\s*term|term\s*3)\b/gi
+    autumn:/\b(autumn\s*term|term\s*1|michaelmas)\b/gi,
+    spring:/\b(spring\s*term|term\s*2|lent)\b/gi,
+    summer:/\b(summer\s*term|term\s*3|trinity)\b/gi
   };
-  const DATE_RE_SRC2 = `(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_RE_SRC})\\s+(\\d{4})`;
+  // Date regex: handles "4 September 2025", "4th September 2025", "Monday 4 September 2025"
+  const DATE_RE_SRC2 = `(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)?\\s*(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_RE_SRC})\\s+(\\d{4})`;
 
   function extractDates2(seg, minY, maxY) {
     const re = new RegExp(DATE_RE_SRC2, 'gi'); const out=[]; let m;
     while((m=re.exec(seg))!==null){
+      // m[1]=day, m[2]=month, m[3]=year  (day name is non-capturing so groups stay the same)
       const mo=MONTHS_IDX[m[2].toLowerCase()];
       if(mo===undefined)continue;
       const d=new Date(+m[3],mo,+m[1]);
@@ -887,7 +928,18 @@ function parseTermsGeneric(text) {
   return data;
 }
 
-function extractTables(html) {
+// Convert raw HTML to plain text for parsing
+function htmlToText(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.querySelectorAll('script,style,nav,header,footer,noscript').forEach(el => el.remove());
+  // textContent works on DOMParser docs (innerText does not — requires rendered DOM)
+  const raw = (doc.body || doc.documentElement).textContent || '';
+  // Collapse excess whitespace while preserving line breaks
+  return raw.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// Extract structured tables from HTML for fallback parsing
+function extractTablesFromHTML(html) {
   const doc = new DOMParser().parseFromString(html,'text/html');
   const out=[];
   doc.querySelectorAll('table').forEach(t=>{
@@ -896,6 +948,60 @@ function extractTables(html) {
     if(rows.length>1) out.push({headers,rows});
   });
   return out;
+}
+
+// Try to parse HTML tables into the structured year/term format
+function parseTermsFromTables(tables) {
+  const data = {};
+  const TERM_MAP = {
+    autumn:/\bautumn\b/i, spring:/\bspring\b/i, summer:/\bsummer\b/i,
+    michaelmas:/\bmichaelmas\b/i, lent:/\blent\b/i, trinity:/\btrinity\b/i
+  };
+  const TERM_KEY = { autumn:'autumn', michaelmas:'autumn', spring:'spring', lent:'spring', summer:'summer', trinity:'summer' };
+
+  for (const table of tables) {
+    const allText = table.rows.flat().join(' ');
+    // Find academic year references
+    const yrMatches = [...allText.matchAll(/20(\d{2})\s*[\/\-–]\s*(?:20)?(\d{2})/g)];
+    if (!yrMatches.length) continue;
+    const yr = yrMatches[0];
+    const y1 = `20${yr[1]}`, y2 = yr[2].length===2?`20${yr[2]}`:yr[2];
+    if (Math.abs(+y2-+y1) !== 1) continue;
+    const acYear = `${y1}-${y2}`;
+    if (!data[acYear]) data[acYear] = { year:acYear, autumn:null, spring:null, summer:null };
+
+    for (const row of table.rows) {
+      const rowText = row.join(' ');
+      // Identify which term this row belongs to
+      let termKey = null;
+      for (const [k, re] of Object.entries(TERM_MAP)) {
+        if (re.test(rowText)) { termKey = TERM_KEY[k]; break; }
+      }
+      if (!termKey) continue;
+      // Extract dates from this row
+      const dateRe = /(\d{1,2})(?:st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/gi;
+      const dates = [];
+      let dm;
+      while ((dm = dateRe.exec(rowText)) !== null) {
+        const mo = MONTHS_IDX[dm[2].toLowerCase()];
+        if (mo !== undefined) dates.push(new Date(+dm[3], mo, +dm[1]));
+      }
+      if (dates.length < 1) continue;
+      dates.sort((a,b) => a-b);
+      if (!data[acYear][termKey]) {
+        data[acYear][termKey] = { start:dates[0], end:dates[dates.length-1], halfTermStart:null, halfTermEnd:null };
+      } else {
+        if (dates[0] < data[acYear][termKey].start) data[acYear][termKey].start = dates[0];
+        if (dates[dates.length-1] > data[acYear][termKey].end) data[acYear][termKey].end = dates[dates.length-1];
+      }
+    }
+  }
+
+  // Remove empty years
+  for (const yr of Object.keys(data)) {
+    if (!data[yr].autumn && !data[yr].spring && !data[yr].summer) delete data[yr];
+  }
+  return data;
 }
 
 // ─── UI ───────────────────────────────────────────────────
@@ -930,7 +1036,6 @@ function pdfLinksHtml(school) {
 function renderTermData(schoolKey, data, sourceUrl, tables, proxyName) {
   const yrs=Object.keys(data).sort();
   if(!yrs.length) {
-    if(tables&&tables.length) return renderTables(SCHOOLS[schoolKey], tables, sourceUrl, proxyName);
     return showError(SCHOOLS[schoolKey], sourceUrl);
   }
 
@@ -985,18 +1090,6 @@ function renderYear(yd) {
   }).join('')}</div>`;
 }
 
-function renderTables(school, tables, sourceUrl, proxyName) {
-  let html='';
-  tables.slice(0,5).forEach((t,i)=>{
-    if(t.rows.length<2)return;
-    const hr=t.headers.length?t.headers:t.rows[0];
-    const br=t.headers.length?t.rows:t.rows.slice(1);
-    html+=`<div class="raw-table-wrap"><div class="raw-table-title">📅 ${hr[0]||'Term Dates'}</div><div class="table-scroll"><table class="raw-table"><thead><tr>${hr.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${br.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
-  });
-  html+=`<div class="source-footer"><span>Data from official source</span><a class="view-source" href="${typeof sourceUrl==='string'?sourceUrl:sourceUrl[0]}" target="_blank" rel="noopener">🔗 View source</a></div>`;
-  resultsEl.innerHTML=html;
-}
-
 // ─── LOAD SCHOOL ──────────────────────────────────────────
 async function loadSchool(key) {
   const school=SCHOOLS[key];
@@ -1007,12 +1100,25 @@ async function loadSchool(key) {
     if(school.type==='html') {
       const {result:html, proxyName}=await fetchWithFallback(school.url, n=>setProxyStatus(`Trying ${n}…`));
       setProgress(75);
-      const parsed=parseTermsFromText(html);
-      const tables=extractTables(html);
+
+      // Strategy 1: strip HTML to plain text, then parse
+      const plainText = htmlToText(html);
+      const parsedText = parseTermsFromText(plainText);
+
+      // Strategy 2: extract HTML tables → structured term data
+      const tables = extractTablesFromHTML(html);
+      const parsedTables = parseTermsFromTables(tables);
+
+      // Use whichever strategy got more data
+      const parsed = Object.keys(parsedText).length >= Object.keys(parsedTables).length
+        ? parsedText : parsedTables;
+
       setProgress(95);
-      if(Object.keys(parsed).length) renderTermData(key,parsed,school.url,tables,proxyName);
-      else if(tables.length) renderTables(school,tables,school.url,proxyName);
-      else showError(school,school.url);
+      if (Object.keys(parsed).length) {
+        renderTermData(key, parsed, school.url, null, proxyName);
+      } else {
+        showError(school, school.url);
+      }
 
     } else if(school.type==='pdfs') {
       // Show links immediately so user can always access PDFs
